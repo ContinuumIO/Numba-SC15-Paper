@@ -143,20 +143,128 @@ This is the abstract.
 
 \keywords{LLVM, Python, Compiler} % NOT required for Proceedings
 
-\section{Introduction}
-Introduction
+\section{Background}
 
-\section{The {\secit Body} of The Paper}
-Section
+Python is a dynamically typed, interpreted language.
+It is regarded as a high productivity language due to its simple syntax,
+flexible semantic and the large number of libraries.
+As a result, a scientific community have emerged and there is a stronger need
+to better performance.
+Among the many performance focused librarys, NumPy is one of the important
+scientific library in the Python ecosystem as it provides a n-dimensional
+array (ndarray) object that became the foundation of efficient numeric
+computation in Python.
 
-\subsection{Type Changes and {\subsecit Special} Characters}
+A ndarray is a homogenous typed data memory buffer.
+Data can be stored in either C contiguous, FORTRAN contiguous or have arbitrary
+strides at each dimension.  This allows binding to high performance computing
+libraries that are traditionally written in C or FORTRAN, such as BLAS and
+LAPACK. The ndarray support array expression: using Python operators on
+ndarrays will trigger element-wise operations that are implemented in C
+efficiently.  However, a trivial looping of the elements in Python is
+inefficient due to the layers of indirection inside interpreted code.
+
+\section{What is Numba?}
+
+Numba is a just-in-time compiler for Python.
+It uses LLVM for code generation.
+Its initial focus is to target a Python subset that makes heavy use of
+ndarrays in loops.  The ndarray provides important dimensionality,
+type and data layout information that allows Numba to generate specialized
+loops for arrays in machine code. By knowing the native structure of ndarray,
+it bypasses unnecessary indirection for accessing data in ndarrays.
+The basic structure of the ndarray consists of the data pointer to the base of
+the memory buffer and two integer arrays for the dimensionality (aka shape) and
+the strides. Numba can directly access these fields for calculating the offset
+of each element.  As a result, it can generate efficient loops that indexes
+into ndarrays that are as fast as their FORTRAN counterpart
+(TODO: benchmark for proof).
+
+(TODO: talk about current language support)
+
+(TODO: talk about bypassing the CPython interpreter)
+
+Unlike most JIT for interpreter languages, Numba does not perform tracing.
+Instead, it requires user annotation for marking the function that requires
+compilation. The just-in-time aspect comes from call-site code generation.
+To relieve user from the burden of type annotation, Numba inspect the types
+of the arguments for local type inference on the callee function.
+As a result, it can have accurate type information for each values.
+Python duck-typing is supported by overloading the function for each
+encountered type combination at the call-site. (Talk about code bloat???)
+
+Numba is not a perfect JIT as the semantic of the compiled code slightly differs
+from the interpreted. It can compile a subset of the language only
+and it violates some semantic of Python.  It does not support big integers
+and is limited to 64-bit integer for the maximum representable integer type.
+All arithmetic operations on 64-bit integer wraparound when the result
+overflow.  Variable type are not polymorphic.  Implicit coercion occurs when
+a type is assigned to a variable of a different type. In practice, these
+restrictions and deviations from Python semantic rarely affect the user
+because the ndarray has similar limitations. On the other hand, these
+limitations allow for aggressive optimization.
+
+A novelty of Numba is its multi-target backend.  It currently supports NVIDIA
+CUDA backend by using NVVM.  Support for AMD HSA is also available on APU by
+using HLC.  Both NVVM and HLC are vendor-specific version of LLVM for
+additional support for their hardware.  Multi-target support is a important
+reason for the restricted semantic.  Both CUDA and HSA are GPGPU architectures.
+Highly divergent code runs inefficiently on GPGPUs due to thread divergence.
+Executing certain GPGPU specific constructs, like the barrier, by diverged
+threads results in undefined behavior. Forcing each variable to be single-typed
+avoids implicitly branching that are hidden from user for fine-tuning the
+performance and to avoid undefined behavior.
+
+
+\section{Other Python JIT}
+
+(TODO: Unlaiden Swallon, PyPy, Pyston)
+
+\section{Numba Optimize}
+
+
+\subsection{Type erasure}
+
+(TODO: Numba lowered code does not contain type information)
+
+\subsection{Generating Optimized Code for Ndarray}
+
+(TODO: Convey buffer contiguousness by GEP and not strides.
+NumPy uses strides only.)
+
+
+\section{Managing LLVM API}
+
+LLVM development is rapid and its C++ API changes frequently.
+In early Numba development, we maintained a python binding, called llvmpy,
+to the C++ API and have tried to keep a binding that mirrors the C++ interface,
+but this was soon proven to be difficult.
+To simplify the binding and to minimize the exposure the to the LLVM C++ API,
+we adopted the C API instead and added any missing interface to the C++ API.
+The new binding is called llvmlite.  It replicates the C++ IRBuilder API in
+pure Python and builds up a string of the LLVM IR.
+
+(TODO: talk about C assertion in LLVM)
+
+
+\section{Challenges due to LLVM}
 Subsection
 
-\subsection{Math Equations}
-More subsection
+\subsection{ABI is function type, portability}
 
-\subsubsection{Inline (In-text) Equations}
-SubSubSection
+TODO
+
+\subsection{Slow code emission, OrcJIT}
+
+TODO
+
+\subsection{Cross module linkage, OrcJIT}
+
+TODO
+
+\subsection{Object Cache}
+
+TODO
 
 \section{Conclusions}
 My conclusion
