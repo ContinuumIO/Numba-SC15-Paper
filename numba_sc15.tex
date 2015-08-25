@@ -264,7 +264,56 @@ TODO
 
 \subsection{Object Cache}
 
-TODO
+LLVM's MCJIT, which is used by Numba, features callback hooks for
+applications to implement a form of object caching.  It works
+as follows (*).  Before compiling a module, the MCJIT execution engine
+calls the user-provided getObject() method.  That method can either
+return a pointer to an existing memory area, in which case that
+memory area is treated as an object file containing the module's
+generated code (for example a ELF file under Linux), or a null pointer,
+in which case compilation goes on as usual.
+
+(*) API doc at http://llvm.org/docs/doxygen/html/classllvm_1_1ObjectCache.html
+
+Then, whenever the MCJIT execution engine has finished compiling a
+module (specifically, this means the getObject() method has returned
+a null pointer), it calls the notifyObjectCompiled() method providing
+both the module reference and a pointer to the memory area containing
+the module's object code.
+
+This callback-based model works well for a trivial form of caching,
+where an LLVM module's object code is cached as-is, without any
+additional information (this is how object caching is demonstrated in
+the official Kaleidoscope tutorial (**)).  However, more complex forms of
+caching need to serialize additional information beside the object code
+for the module.  In Numba, this ancillary information is two-fold.  First,
+we need to store freshness information (a timestamp, a version number,
+and potentially other data) in order to decide at runtime whether the
+cached module is fresh or stale.  Second, we also need to store non-LLVM
+data that is necessary to call the module's functions to be called,
+information which is a akin to a closure and is composed of arbitrarily
+complex Python objects.
+
+Both pieces of information are not known at the LLVM module layer;
+they reside at a higher level of abstraction.  We therefore had to
+turn the callback model upside-down by keeping the object code inside
+some long-lived variables, in order to be able to save or load
+the object code at the place and time where it is natural to do so.
+
+For our use case, and presumably for other non-trivial JIT use cases,
+it would have been better to rely on a simple imperative API, allowing
+both to fetch a module's object code (when compiled), and to feed object
+code to the execution engine for a module.
+
+A callback-based API is essentially useful when events are produced from
+the outside, and/or in an uncontrolled way: for example, GUI or network
+events.  Here, the events are predictable by the application
+itself (compilation is triggered deterministically by calls to the
+execution engine API), therefore an imperative API would have been as
+well suited to the task.
+
+(**) http://blog.llvm.org/2013/08/object-caching-with-kaleidoscope.html
+
 
 \section{Conclusions}
 My conclusion
