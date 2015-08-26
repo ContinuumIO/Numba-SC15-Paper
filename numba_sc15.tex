@@ -148,10 +148,10 @@ This is the abstract.
 Python is a dynamically typed, interpreted language.
 It is regarded as a high productivity language due to its simple syntax,
 flexible semantic and the large number of libraries.
-It has gained popularity in the a scientific computing community,
+It has gained popularity in the scientific computing community,
 which has driven the demand of high performance tools.
 Among the many performance focused librarys, NumPy is one of the important
-scientific library in the Python ecosystem as it provides a n-dimensional
+scientific library in the Python ecosystem as it provides a multi-dimensional
 array (ndarray) object that became the foundation of efficient numeric
 computation in Python.
 
@@ -174,12 +174,15 @@ the code.
 
 \section{What is Numba?}
 
-Numba is a just-in-time compiler for CPython.
+Numba is a function-at-a-time just-in-time compiler for CPython,
+the C implementation of Python.
 It exists as a library to CPython and does not replace the interpeter.
 Its initial focus is to target a Python subset that makes heavy use of
-ndarrays in loops.  The ndarray provides important dimensionality,
-type and data layout information that allows Numba to generate specialized
-loops for arrays in machine code. By knowing the native structure of ndarray,
+ndarrays in loops, so that users no longer need to rewrite their Python code in
+low-level languages for better performance.
+The ndarray provides important dimensionality, type and data layout information
+that allows Numba to generate specialized  loops for arrays in machine code.
+By knowing the native structure of ndarray,
 it bypasses unnecessary indirection for accessing data in ndarrays.
 The basic structure of the ndarray consists of the data pointer to the base of
 the memory buffer and two integer arrays for the dimensionality (aka shape) and
@@ -190,14 +193,19 @@ into ndarrays that are as fast as their FORTRAN counterpart
 subset is expanding. Currently, it can handle high-level features such as
 generators and array expressions.
 
-Unlike most JIT for interpreter languages, Numba does not perform tracing.
-Instead, it relies on user annotations for marking the function that requires
-compilation. The just-in-time aspect comes from call-site code generation.
+Unlike most JIT for interpreted languages, Numba does not perform trace or
+replace the interpreter.
+Instead, it relies on user actively replacing the functions that need compiling.
+In Python, this is done by applying a decorator to the function.
+The decorator replaces the original Python function with a special object
+that just-in-time compiles the function when being called.
 To relieve user from the burden of type annotation, Numba inspect the types
-of the arguments for local type inference on the callee function.
-As a result, it can have accurate type information for each values.
-Python duck-typing is supported by overloading the function for each
-encountered type combination at the call-site. (Talk about code bloat???)
+of the arguments for local type inference on the function.
+As a result, it can have accurate type information for each values without
+tracing the execution.
+Python duck-typing (Talk about this later?) is supported by overloading the
+function for each encountered type combination at the call-site.
+(Talk about code bloat???)
 
 The semantic of the compiled code slightly differs
 from the interpreted. Numba supports a subset of the language only
@@ -214,11 +222,13 @@ A novelty of Numba is its multi-target backend.  It currently supports NVIDIA
 CUDA backend by using NVVM.  Support for AMD HSA is also available on APU by
 using HLC.  Both NVVM and HLC are vendor-specific version of LLVM for
 additional support for their hardware.  Multi-target support is an important
-reason for the restricted semantic.  Both CUDA and HSA are GPGPU architectures.
+reason for the restricting the supported language.
+Numba maps directly to the execution model of the GPGPU architectures.
+Thus, it inherits all limitations.
 Highly divergent code runs inefficiently on GPGPUs due to thread divergence.
 Executing certain GPGPU specific constructs, like a thread barrier, by diverged
 threads results in undefined behavior. Forcing each variable to be single-typed
-avoids implicitly branching that are hidden from user for fine-tuning the
+avoids implicit branching that are hidden from user for fine-tuning the
 performance and to avoid undefined behavior.
 
 \section{Other Python JIT}
@@ -235,11 +245,28 @@ the compilation when called.
 
 When a decorated function is called the first time, the call arguments are
 inspected. The runtime argument types are used to seed the type inference.
-Then, the function bytecode is dissemabled by applying control-flow and
-data-flow analysis. The control-flow analysis used is rather simple.
+Then, the function bytecode is dissemabled.  Control-flow and data-flow analysis
+are used to recover information from the bytecode.
+The control-flow analysis used is rather simple.
 The bytecode is scanned for jump targets and loops. Information on loops
-can useful for a second round of compilation attempt with type inference fail
-due to usage of unsupported types.
+can useful for a second round of compilation attempt if type inference fail
+due to usage of unsupported types.  The control-flow analysis also provides
+information about the scope of variable definition.
+Numba restricts the semantic such that a variable type is fixed in one scope.
+In normal Python, there is no nested scoping inside a function.
+All variable defined in the function lives in the local scope.
+To lower the impact of the restricted semantic, a basic-block that dominates
+all successor basic-blocks is considered as start of a new scope.
+An assignment at the start of a new scope is a new variable definition; thus,
+it can have a new type.
+
+The data-flow analysis is used to convert the Python stack machine into an
+register machine with infinite number of registers.
+The stack effect of each bytecode instruction is analyzed and a register is
+allocated for each value.  This analysis also propagates any lingering stack
+values when each basic-block ends to the direct successors.
+A phi node is inserted in the latter.
+
 
 
 
