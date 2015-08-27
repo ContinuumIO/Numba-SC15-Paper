@@ -143,6 +143,9 @@ This is the abstract.
 
 \keywords{LLVM, Python, Compiler} % NOT required for Proceedings
 
+\section{Introduction}
+TODO
+
 \section{Background}
 
 Python is a dynamically typed, interpreted language.
@@ -203,9 +206,6 @@ To relieve user from the burden of type annotation, Numba inspect the types
 of the arguments for local type inference on the function.
 As a result, it can have accurate type information for each values without
 tracing the execution.
-Python duck-typing (Talk about this later?) is supported by overloading the
-function for each encountered type combination at the call-site.
-(Talk about code bloat???)
 
 The semantic of the compiled code slightly differs
 from the interpreted. Numba supports a subset of the language only
@@ -215,8 +215,10 @@ All arithmetic operations on 64-bit integer wraparound when the result
 overflow.  Variable type are not polymorphic.  Implicit coercion occurs when
 a type is assigned to a variable of a different type. In practice, these
 restrictions and deviations from Python semantic rarely affect the user
-because the ndarray has similar limitations. On the other hand, these
-limitations allow for aggressive optimization.
+because the ndarray already has similar limitations. On the other hand, these
+limitations allow for aggressive optimization.  As Numba continues to develop,
+we aim to remove these limitions, but leave an option for user permit the
+violation of Python semantic for optimization reason.
 
 A novelty of Numba is its multi-target backend.  It currently supports NVIDIA
 CUDA backend by using NVVM.  Support for AMD HSA is also available on APU by
@@ -239,51 +241,148 @@ performance and to avoid undefined behavior.
 
 Numba relies on user annotation by using a Python decorator (@jit) on functions.
 The decorator subsitute the function object with a special object that triggers
-the compilation when called.
+the compilation when called. When a decorated function is called,
+the call arguments are inspected. If the set of argument types have not appeared
+before, Numba compile will compile a specialized version of the function for the
+given types. Otherwise, the previously compiled version is called.
 
-\subsection{Compilation Pipeline}
+The compilation starts by converting the Python bytecode into the an
+intermediate representation (IR) on which the type inference
+is performed. If the type of each value in the IR can be inferred, the IR is
+lowered to LLVM, which then emits the final machine code.  We call this the
+\textit{nopython mode} because all operations can be lowered into efficient
+machine code without relying on the Python runtime for any operation.
+A \textit{nopython mode} function can be executed without the \textit{global
+interpreter lock} (GIL) and is able to run in parallel threads.
+If Numba cannot determine one of the value in the IR,
+it assumes to all values in the function to be a Python object. At this point,
+Numba must use the Python C-API and rely on the Python runtime for the
+execution. The generated code would be equivalent to unrolling the interpreter
+loop; thus, removeing the interpreter overhead.
+This compilation mode serves as a fallback if Numba cannot infer the type
+We call this the textit{object mode}.
+of a value or function.
 
-When a decorated function is called the first time, the call arguments are
-inspected. The runtime argument types are used to seed the type inference.
-Then, the function bytecode is dissemabled.  Control-flow and data-flow analysis
-are used to recover information from the bytecode.
-The control-flow analysis used is rather simple.
-The bytecode is scanned for jump targets and loops. Information on loops
-can useful for a second round of compilation attempt if type inference fail
-due to usage of unsupported types.  The control-flow analysis also provides
-information about the scope of variable definition.
-Numba restricts the semantic such that a variable type is fixed in one scope.
-In normal Python, there is no nested scoping inside a function.
-All variable defined in the function lives in the local scope.
-To lower the impact of the restricted semantic, a basic-block that dominates
-all successor basic-blocks is considered as start of a new scope.
-An assignment at the start of a new scope is a new variable definition; thus,
-it can have a new type.
+\subsection{Bytecode}
 
-The data-flow analysis is used to convert the Python stack machine into an
-register machine with infinite number of registers.
-The stack effect of each bytecode instruction is analyzed and a register is
-allocated for each value.  This analysis also propagates any lingering stack
-values when each basic-block ends to the direct successors.
-A phi node is inserted in the latter.
+When calling a function in normal CPython execution, the interpreter creates
+a new frame for the function and executes the function bytecode.
+The bytecode is an instruction stream similar to x86 assembly.
+Instructions are variable length. Branches are encoded as absolute or relative
+jump instructions. Some bytecode instructions perform multiple tasks.
+For instance, the JUMP\_IF\_TRUE\_OR\_POP jump to the
+target address if the value on the top-of-stack (TOS) evalutes to true;
+otherwise, pop the TOS value.  Another complex instruction is the FOR\_ITER
+instruction.  It is used in the encoding of the for-loop construct.
+This instruction asks for the next value of the iterator at TOS.
+If the iterator is exhausted, it pops the stacka and jumps to end of loop
+indicated by the operand of the instruction.  Otherwise, the next value of the
+iterator is pushed on to the stack and proceed to the next instruction, which
+is the first instruction of the loop body. Both of these instructions have
+changes the control-flow and have optional stack-effect. \cite{pythondoc:dis}
+Instructions like these are common and they cannot be mapped directly to
+the low-level representation used by LLVM IR.
 
+\subsection{Disassembling the bytecode}
 
+Translation of the bytecode to LLVM IR is not trivial due to the
+complexity of many common bytecode instructions.  We need to disassemble
+the bytecode to recover the basic-blocks and to convert the stack machine into
+a register machine to facilitate further analysis and lowering.
 
+The first step of disassembling the bytecode is to recover the control flow
+information. The bytecode is scanned for jump targets. The jump targets
+indicate the start of the basic-blocks.  The jump instructions marks the
+end of basic-blocks.
 
+Now that all instructions are grouped into basic-blocks. We can simulate stack
+operations to assign virtual register to each value.
+When a pop operation is encountered and the stack is empty.  A \textit{phi}
+node is inserted. Its incoming values can be connected to the lingering stack
+value from the direct predecessors.
+
+\subsection{Internal Representation}
+
+With the control-flow information and the stack-to-register mapping
+of the bytecode, the bytecode is translated into an internal represenation,
+called Numba IR. The Numba IR is a higher-level representation of the function
+logic than the bytecode.  It captures the control-flow as basic-blocks and values
+in variables.
+
+\subsubsection{Scoping}
+As part of the translation, a concept of variable scoping is introduced.
+In Python semantic, all variables in a function, including the arguments,
+are in the local scope.  There are no nested scope within a function.
+To workaround the lack of variant type (or tagged union),
+Numba introduces a concept of scope to allow different version of the same
+variable to exist inside a function; thus, a variable of the same name can
+have different types in different part of problem.  For example:
+
+\begin{lstlisting}
+def foo():
+  a = 1
+  bar(a)
+  a = a + 2.5
+  bar(a)
+  return a
+\end{lstlisting}
+
+At the first assignment, \textit{a} is an integer. At the second assignment,
+\textit{a} is evolved to be a float. If the second assignment does not create
+a new version of \textit{a}, our type inference will coerce \textit{a} to be
+float for the entire function.
+
+(XXX: I need to fix the scoping)
+Generalizing to consider the control-flow, each variable access will use
+the version available at the dominator.
+
+\subsection{Type Inference and Lowering}
+
+Local type inference is applied to the Numba-IR at call time so that we
+the type of the argument is known. A data-dependency graph is built for
+propagating the type of each value.  Each node of the graph is an function call
+(builtin operators are implicit function calls). Knowledge of function signature
+is encoded in a registry. Given the argument types, the type inferencer look up
+the corresponding entry for the function and gets the return type. If a
+different return type is obtained for a value, the two type is unified by
+coercion with preference to avoid information loss. Coercion is only available
+to numeric types and certain built-in types. The data-dependency graph can
+contain cycles due to loops. The type inferencer runs until a fixed-point is
+reached. If the type inference fails, we assume all values are generic Python
+objects.
+
+The lowering phase is straightforward.  At this point, we have type information
+for all values in the Numba IR. Each operation is translated to LLVM IR
+according to a implementation registry for each functions.
+
+\section{Optimizations}
 
 \subsection{Type erasure}
 
-(TODO: Numba lowered code does not contain type information)
+In \textit{nopython mode}, type information is erased in the generated code.
+For function that have overloaded signatures, the exact version to call is known
+due to type inference. There are no runtime type-based dispatch in generated
+code.
 
-\subsection{Generating Optimized Code for Ndarray}
+\subsection{Deferred Loop Specialization}
 
-(TODO: Convey buffer contiguousness by GEP and not strides.
-NumPy uses strides only.)
+Since loops are likely to be compute-intensive, Numba will \"lift\" the loops
+out from function compiled in \textit{object mode} into a new function.
+The new function acts like a Numba \textit{@jit} decorated function and
+waits for callsite compilation. This provides a second chance for Numba to
+optimize any compute intensive loop.
 
-\subsection{Bypassing the GIL}
+\subsection{Array Expression}
+
+Array expressions are formed by applying built-in Python operators on
+ndarray objects. After type inference, an optimization pass search for any
+array expression and rewrite them into a loop. This avoids allocating
+temporary arrays for intermedate results.
+(TODO: Need more details)
 
 \section{Working with LLVM}
-Subsection
+
+Here, we describe our experience in using LLVM.
 
 \subsection{Managing LLVM API}
 
@@ -298,17 +397,42 @@ pure Python and builds up a string of the LLVM IR.
 
 (TODO: talk about C assertion in LLVM)
 
-\subsection{ABI is function type, portability}
+(TODO: Convey buffer contiguousness by GEP and not strides.
+NumPy uses strides only.)
 
-TODO
+\subsection{Managing ABI}
+
+LLVM does not provide abstraction for handling \textit{application binary
+interface}(ABI). It is left for the frontend to handle this architecture
+specific detail.  While we understand that ABI can be part of a lanuguage
+design, we hope that there are facilities for support basic C ABI inside
+LLVM.
+
+To handle the different ABI of multiple arhitectures, including GPGPUs which
+has a more restrictive ABI, Numba avoids using any aggregate types as function
+arguments or return type in the low-level code.  Instead, all aggregates are
+flattened to simple scalars, e.g. intergers, float and pointers.
 
 \subsection{Slow code emission, OrcJIT}
 
-TODO
+(Does not seem to be dominating the Numba compilation pipeline)
+(Maybe removing this section)
 
 \subsection{Cross module linkage, OrcJIT}
 
-TODO
+The legacy JIT in LLVM supports lazy compilation and allows function-at-a-time
+code generation.  However, the new MCJIT does not. As as result, Numba must
+compile each function in a new LLVM module and finalize it immediately to
+trigger code generation. If function \textit{foo} calls \textit{bar},
+we need to register the address of \textit{bar} to the execution engine
+before the finalization of \textit{foo}; otherwise, the finalization of
+\textit{foo} will fail due to unresolved reference to \textit{bar}.
+This makes handling of mutual recursion difficult.
+
+Separating each functions in different module also make inlining difficult.
+We have to maintain reference to all LLVM modules of every compiled function
+and perform cross-module linking manually. A problem for this is duplicated
+LLVM function in many modules and is memory expensive.
 
 \subsection{Object Cache}
 
