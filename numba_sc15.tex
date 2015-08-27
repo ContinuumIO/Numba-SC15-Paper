@@ -314,14 +314,13 @@ TODO
 
 LLVM's MCJIT, which is used by Numba, features callback hooks for
 applications to implement a form of object caching.  It works
-as follows (*).  Before compiling a module, the MCJIT execution engine
+as follows \cite{llvmdoc:objectcache}.
+Before compiling a module, the MCJIT execution engine
 calls the user-provided getObject() method.  That method can either
 return a pointer to an existing memory area, in which case that
 memory area is treated as an object file containing the module's
 generated code (for example a ELF file under Linux), or a null pointer,
 in which case compilation goes on as usual.
-
-(*) API doc at http://llvm.org/docs/doxygen/html/classllvm_1_1ObjectCache.html
 
 Then, whenever the MCJIT execution engine has finished compiling a
 module (specifically, this means the getObject() method has returned
@@ -332,7 +331,8 @@ the module's object code.
 This callback-based model works well for a trivial form of caching,
 where an LLVM module's object code is cached as-is, without any
 additional information (this is how object caching is demonstrated in
-the official Kaleidoscope tutorial (**)).  However, more complex forms of
+the official Kaleidoscope tutorial \cite{llvmblog:kaleidoscope}.
+However, more complex forms of
 caching need to serialize additional information beside the object code
 for the module.  In Numba, this ancillary information is two-fold.  First,
 we need to store freshness information (a timestamp, a version number,
@@ -360,12 +360,6 @@ itself (compilation is triggered deterministically by calls to the
 execution engine API), therefore an imperative API would have been as
 well suited to the task.
 
-(**) http://blog.llvm.org/2013/08/object-caching-with-kaleidoscope.html
-
-
-
-TODO Praise? Gripes?
-
 \section{Conclusions}
 My conclusion
 %\end{document}  % This is where a 'short' article might terminate
@@ -379,7 +373,7 @@ Optional section
 % initial runs of your .tex file to
 % produce the bibliography for the citations in your paper.
 \bibliographystyle{abbrv}
-\bibliography{sigproc}  % sigproc.bib is the name of the Bibliography in this case
+\bibliography{cite}  % cite.bib is the name of the Bibliography in this case
 % You must have a proper ".bib" file
 %  and remember to run:
 % latex bibtex latex latex
