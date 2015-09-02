@@ -246,6 +246,17 @@ the call arguments are inspected. If the set of argument types have not appeared
 before, Numba compile will compile a specialized version of the function for the
 given types. Otherwise, the previously compiled version is called.
 
+The following example illustrate the usage of the @jit decorator on a function:
+
+
+\begin{lstlisting}
+from numba import jit
+
+@jit
+def foo(a):
+  return a + a
+\end{lstlisting}
+
 The compilation starts by converting the Python bytecode into the an
 intermediate representation (IR) on which the type inference
 is performed. If the type of each value in the IR can be inferred, the IR is
@@ -270,12 +281,12 @@ a new frame for the function and executes the function bytecode.
 The bytecode is an instruction stream similar to x86 assembly.
 Instructions are variable length. Branches are encoded as absolute or relative
 jump instructions. Some bytecode instructions perform multiple tasks.
-For instance, the JUMP\_IF\_TRUE\_OR\_POP jump to the
+For instance, the \textit{JUMP\_IF\_TRUE\_OR\_POP} jump to the
 target address if the value on the top-of-stack (TOS) evalutes to true;
 otherwise, pop the TOS value.  Another complex instruction is the FOR\_ITER
 instruction.  It is used in the encoding of the for-loop construct.
 This instruction asks for the next value of the iterator at TOS.
-If the iterator is exhausted, it pops the stacka and jumps to end of loop
+If the iterator is exhausted, it pops the stack and jumps to end of loop
 indicated by the operand of the instruction.  Otherwise, the next value of the
 iterator is pushed on to the stack and proceed to the next instruction, which
 is the first instruction of the loop body. Both of these instructions have
@@ -293,92 +304,99 @@ a register machine to facilitate further analysis and lowering.
 The first step of disassembling the bytecode is to recover the control flow
 information. The bytecode is scanned for jump targets. The jump targets
 indicate the start of the basic-blocks.  The jump instructions marks the
-end of basic-blocks.
+end of basic-blocks. This can be a simple process but, as mentioned in previous
+section, some bytecode instructions can perform  operations on one of the
+branch target.  Heuristics are used to reconstruct the basic-blocks properly
+As a result, our bytecode disassembler is tailored to the specific behavior of
+a CPython version.  Different version of CPython can change both the bytecode
+instruction set and the way certain syntactic constructs are encoded.
 
-Now that all instructions are grouped into basic-blocks. We can simulate stack
-operations to assign virtual register to each value.
-When a pop operation is encountered and the stack is empty.  A \textit{phi}
-node is inserted. Its incoming values can be connected to the lingering stack
-value from the direct predecessors.
+Once all instructions are grouped into basic-blocks. We can simulate stack
+operations to assign virtual register to each value.  Each basic-block is
+simulated individually. Therefore, it is possible that the stack is empty when
+a pop is encountered. In that case, a \textit{phi} node is inserted.
+Its incoming values is later connected to the lingering stack value from the
+incoming basic blocks.
 
 \subsection{Internal Representation}
 
 With the control-flow information and the stack-to-register mapping
 of the bytecode, the bytecode is translated into an internal represenation,
-called Numba IR. The Numba IR is a higher-level representation of the function
-logic than the bytecode.  It captures the control-flow as basic-blocks and values
-in variables.
+called the Numba IR. The Numba IR is a higher-level representation of the
+function logic than the bytecode. It captures the control-flow as basic-blocks
+and values in variables.
 
-\subsubsection{Scoping}
-As part of the translation, a concept of variable scoping is introduced.
-In Python semantic, all variables in a function, including the arguments,
-are in the local scope.  There are no nested scope within a function.
-To workaround the lack of variant type (or tagged union),
-Numba introduces a concept of scope to allow different version of the same
-variable to exist inside a function; thus, a variable of the same name can
-have different types in different part of problem.  For example:
+During the translation to the Numba IR, a notion of scoping is introduce to
+minimize the effect of monotyping for variables. An assignment to a variable
+is considered a new variable definition when the definition is visible by all
+subsequent basic-blocks. Otherwise, the assignment stores the new value to
+the previous definition.  For example:
 
 \begin{lstlisting}
+@jit
 def foo():
   a = 1
   bar(a)
   a = a + 2.5
   bar(a)
+  a = a + 2j
+  bar(a)
   return a
 \end{lstlisting}
 
-At the first assignment, \textit{a} is an integer. At the second assignment,
-\textit{a} is evolved to be a float. If the second assignment does not create
-a new version of \textit{a}, our type inference will coerce \textit{a} to be
-float for the entire function.
+The three assignment to \textit{a} will create three definitions that have
+types integer, float and complex, respectively.  As a result, the three
+calls to \textit{bar} will be calling a different overloaded version.
 
-(XXX: I need to fix the scoping)
-Generalizing to consider the control-flow, each variable access will use
-the version available at the dominator.
+\subsection{Type Inference}
 
-\subsection{Type Inference and Lowering}
-
-Local type inference is applied to the Numba-IR at call time so that we
+Local type inference is applied to the Numba-IR at call time so that
 the type of the argument is known. A data-dependency graph is built for
 propagating the type of each value.  Each node of the graph is an function call
-(builtin operators are implicit function calls). Knowledge of function signature
-is encoded in a registry. Given the argument types, the type inferencer look up
+(builtin operators are implicit function calls). Knowledge of function
+signatures is encoded in a registry.
+Given the argument types, the type inferencer looks up
 the corresponding entry for the function and gets the return type. If a
-different return type is obtained for a value, the two type is unified by
+different return type is obtained for a value, the two types are unified by
 coercion with preference to avoid information loss. Coercion is only available
 to numeric types and certain built-in types. The data-dependency graph can
 contain cycles due to loops. The type inferencer runs until a fixed-point is
-reached. If the type inference fails, we assume all values are generic Python
-objects.
+reached. If the type inference fails, all values are assigned with a generic
+Python object type.
 
-The lowering phase is straightforward.  At this point, we have type information
-for all values in the Numba IR. Each operation is translated to LLVM IR
-according to a implementation registry for each functions.
+\subsection{High-Level Optimizations}
 
-\section{Optimizations}
+With type annotation on each variable in the Numba IR, several high-level
+optimizations are performed.
 
-\subsection{Type erasure}
+\subsubsection{Deferred Loop Specialization}
 
-In \textit{nopython mode}, type information is erased in the generated code.
-For function that have overloaded signatures, the exact version to call is known
-due to type inference. There are no runtime type-based dispatch in generated
-code.
-
-\subsection{Deferred Loop Specialization}
-
-Since loops are likely to be compute-intensive, Numba will \"lift\" the loops
+Since loops are likely to be compute-intensive, Numba will extract the loops
 out from function compiled in \textit{object mode} into a new function.
 The new function acts like a Numba \textit{@jit} decorated function and
 waits for callsite compilation. This provides a second chance for Numba to
 optimize any compute intensive loop.
 
-\subsection{Array Expression}
+\subsubsection{Array Expression}
 
 Array expressions are formed by applying built-in Python operators on
 ndarray objects. After type inference, an optimization pass search for any
 array expression and rewrite them into a loop. This avoids allocating
 temporary arrays for intermedate results.
 (TODO: Need more details)
+
+\subsection{Lowering}
+
+The lowering phase is straightforward.  At this point, we have type information
+for all values in the Numba IR. Each operation is translated to LLVM IR
+according to a implementation registry for each functions.  For each Python
+function, two functions are emitted in LLVM: one for the actual
+actual the compiled function, and one for the bridge between the interpreted
+runtime and the compiled runtime. The bridge unboxes Python objects into
+machine representation for use as arguments by the compiled function.  The
+returned values is boxed from the machine representation back to the Python
+objects.
+
 
 \section{Working with LLVM}
 
