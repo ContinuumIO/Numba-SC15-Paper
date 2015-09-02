@@ -233,9 +233,35 @@ threads results in undefined behavior. Forcing each variable to be single-typed
 avoids implicit branching that are hidden from user for fine-tuning the
 performance and to avoid undefined behavior.
 
-\section{Other Python JIT}
+\section{Other Python JITs}
 
-(TODO: Unlaiden Swallon, PyPy, Pyston)
+There are or were several other efforts to build Just-in-Time compilers
+for Python.  Closest to Numba perhaps was Psyco, an opt-in compiler layered
+on the CPython interpreter.  Psyco featured its own x86-only code generator
+and was discontinued by its author, Armin Rigo, because its architecture
+made maintenance and evolution difficult.  \cite{wikipedia:psyco}
+
+Another related effort was Unladen Swallow, a project initiated by some
+Google engineers to produce an evolution of the CPython interpreter augmented
+with a LLVM-based Just-in-Time compiler.  \cite{wikipedia:unladen_swallow}
+The objective of Unladen Swallow was to support the full range of existing
+Python code, and to make the generated code progressively faster by adding
+"proven" optimizations.  The project was discontinued before it got
+significant results for reasons which were explained by one of its authors.
+\cite{kleckner:unladen_swallow_post_mortem}
+
+Other Python Just-in-Time compilers have avoided building on CPython,
+either re-using a significant runtime or building their own.  Of the
+two main alive projects today, one (PyPy \cite{pypy:pypy}) has built its
+own infrastructure from scratch, the other (Pyston \cite{github:pyston})
+is using LLVM.  Both claim to support the full range of features Python
+offers.
+
+Compared to those efforts, Numba is a much more opportunistic and opinionated
+project.  It focusses on a narrow subset of Python's usecases on which it
+aims to extract extremely good performance, comparable to what C or Fortran
+code would achieve.
+
 
 \section{How Numba Works?}
 
