@@ -177,8 +177,9 @@ the code.
 
 \section{What is Numba?}
 
-Numba is a function-at-a-time just-in-time compiler for CPython,
-the C implementation of Python.
+Numba is a function-at-a-time Just-in-Time compiler for CPython
+\cite{wikipedia:cpython}, the most popular implementation of Python which,
+as the name suggests, is written C.
 It exists as a library to CPython and does not replace the interpeter.
 Its initial focus is to target a Python subset that makes heavy use of
 ndarrays in loops, so that users no longer need to rewrite their Python code in
@@ -196,8 +197,8 @@ into ndarrays that are as fast as their FORTRAN counterpart
 subset is expanding. Currently, it can handle high-level features such as
 generators and array expressions.
 
-Unlike most JIT for interpreted languages, Numba does not perform trace or
-replace the interpreter.
+Unlike most Just-in-Time compilers for interpreted languages, Numba does not
+perform tracing nor replace the interpreter.
 Instead, it relies on user actively replacing the functions that need compiling.
 In Python, this is done by applying a decorator to the function.
 The decorator replaces the original Python function with a special object
@@ -233,7 +234,7 @@ threads results in undefined behavior. Forcing each variable to be single-typed
 avoids implicit branching that are hidden from user for fine-tuning the
 performance and to avoid undefined behavior.
 
-\section{Other Python JITs}
+\section{Other Just-in-Time compilers for Python}
 
 There are or were several other efforts to build Just-in-Time compilers
 for Python.  Closest to Numba perhaps was Psyco, an opt-in compiler layered
@@ -254,13 +255,13 @@ Other Python Just-in-Time compilers have avoided building on CPython,
 either re-using a significant runtime or building their own.  Of the
 two main alive projects today, one (PyPy \cite{pypy:pypy}) has built its
 own infrastructure from scratch, the other (Pyston \cite{github:pyston})
-is using LLVM.  Both claim to support the full range of features Python
-offers.
+is using LLVM.  Both claim or intend to support the full range of features
+Python offers.
 
-Compared to those efforts, Numba is a much more opportunistic and opinionated
-project.  It focusses on a narrow subset of Python's usecases on which it
+Compared to those, Numba is much more opportunistic and opinionated.
+It focusses on a narrow subset of Python's usecases on which it
 aims to extract extremely good performance, comparable to what C or Fortran
-code would achieve.
+code would achieve (or even better, when running on the GPU).
 
 
 \section{How Numba Works?}
@@ -410,16 +411,16 @@ temporary arrays for intermedate results.
 
 Here, we describe our experience in using LLVM.
 
-\subsection{Managing LLVM API}
+\subsection{API stability}
 
-LLVM development is rapid and its C++ API changes frequently.
-In early Numba development, we maintained a python binding, called llvmpy,
-to the C++ API and have tried to keep a binding that mirrors the C++ interface,
-but this was soon proven to be difficult.
-To simplify the binding and to minimize the exposure the to the LLVM C++ API,
+LLVM development is fast and its C++ API changes frequently.
+In early days of Numba development, we maintained a Python binding,
+called llvmpy, to the C++ API and have tried to keep a binding that
+mirrors the C++ interface, but this was soon proven to be difficult.
+To simplify the binding and to minimize its exposure to the LLVM C++ API,
 we adopted the C API instead and added any missing interface to the C++ API.
-The new binding is called llvmlite.  It replicates the C++ IRBuilder API in
-pure Python and builds up a string of the LLVM IR.
+The new binding is called llvmlite \cite{rtd:llvmlite}.  It mimicks the
+C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
 
 (TODO: talk about C assertion in LLVM)
 
