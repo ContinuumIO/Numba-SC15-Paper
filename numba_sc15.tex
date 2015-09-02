@@ -404,6 +404,10 @@ The new function acts like a Numba \textit{@jit} decorated function and
 waits for callsite compilation. This provides a second chance for Numba to
 optimize any compute intensive loop.
 
+The CPython bytecode makes loop detection easy. There is a \textit{SETUP\_LOOP}
+bytecode that describes the span of each loop. Numba can simply copy all
+bytecodes marked by the \textit{SETUP\_LOOP} into a new function.
+
 \subsubsection{Array Expression}
 
 Array expressions are formed by applying built-in Python operators on
@@ -447,21 +451,20 @@ NumPy uses strides only.)
 
 \subsection{Managing ABI}
 
-LLVM does not provide abstraction for handling \textit{application binary
+LLVM does not provide an abstraction for handling \textit{application binary
 interface}(ABI). It is left for the frontend to handle this architecture
 specific detail.  While we understand that ABI can be part of a lanuguage
-design, we hope that there are facilities for support basic C ABI inside
-LLVM.
+design, a facility for support basic C ABI inside LLVM can simplify most of the
+ABI issue.
 
 To handle the different ABI of multiple arhitectures, including GPGPUs which
 has a more restrictive ABI, Numba avoids using any aggregate types as function
 arguments or return type in the low-level code.  Instead, all aggregates are
 flattened to simple scalars, e.g. intergers, float and pointers.
 
-\subsection{Slow code emission, OrcJIT}
-
-(Does not seem to be dominating the Numba compilation pipeline)
-(Maybe removing this section)
+To handle Python exceptions in compiled code, Numba uses the return value of
+the compiled function for error code. The actual return value is passed
+in the first argument. This error code style is the same as the CPython API.
 
 \subsection{Cross module linkage, OrcJIT}
 
@@ -476,8 +479,13 @@ This makes handling of mutual recursion difficult.
 
 Separating each functions in different module also make inlining difficult.
 We have to maintain reference to all LLVM modules of every compiled function
-and perform cross-module linking manually. A problem for this is duplicated
-LLVM function in many modules and is memory expensive.
+and perform cross-module linking manually. A problem for this is that
+LLVM functions can be duplicated in many modules; thus, increasing the memory
+use.
+
+% http://llvm.cc/t/llvmdev-new-jit-api-orcjit/219
+Fortunately, the On-Request-Compilation (ORC) JIT is an attempt to bring back
+lost feature of the legacy JIT. (TODO: what else can I say?)
 
 \subsection{Object Cache}
 
