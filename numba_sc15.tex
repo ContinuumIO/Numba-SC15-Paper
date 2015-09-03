@@ -150,7 +150,7 @@ of Python objects, and generally requires a lot of boilerplate code even
 for simple use cases.  Numba lets users annotate a compute-intensive Python
 function for compilation without rewriting the code in a low-level language.
 
-\section{JIT for Numeric Python}
+\section{A JIT for Numeric Python}
 
 Numba is a function-at-a-time Just-in-Time compiler for CPython
 \cite{wikipedia:cpython}, the most popular implementation of Python which,
@@ -168,9 +168,26 @@ the memory buffer and two integer arrays for the dimensionality (aka shape) and
 the strides. Numba can directly access these fields for calculating the offset
 of each element.  As a result, it can generate efficient loops that indexes
 into ndarrays with performance similar to their counterpart written in compiled
-language. As it continues to develop, the support language
+language (see Table \ref{table:speedup}). As it continues to develop, the support language
 subset is expanding. Currently, it can handle high-level features such as
 generators and array expressions.
+
+\begin{table}
+\centering
+\caption{Speedup over CPython in Naive Matrix Multiplication}
+\label{table:speedup}
+\begin{tabular}{|c|c|c|} \hline
+\textbf{Matrix Size} & \textbf{Numba} & \textbf{C}\\ \hline
+64 x 64 & 463x & 453x \\ \hline
+128 x 128 & 454x & 407x \\ \hline
+256 x 256 & 280x & 263x \\ \hline
+512 x 512 & 276x & 268x \\ \hline
+\end{tabular}
+\end{table}
+
+% jit speedup [ 463.5193133   454.40414508  280.73770492  276.26262626]
+% c   speedup [ 453.78151261  407.90697674  263.46153846  268.1372549 ]
+
 
 Unlike most Just-in-Time compilers for interpreted languages, Numba does not
 perform tracing nor replace the interpreter.
@@ -208,6 +225,7 @@ Executing certain GPGPU specific constructs, like a thread barrier, by diverged
 threads results in undefined behavior. Forcing each variable to be single-typed
 avoids implicit branching that are hidden from user for fine-tuning the
 performance and to avoid undefined behavior.
+
 
 \section{Other Just-in-Time compilers for Python}
 
