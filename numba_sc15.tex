@@ -82,19 +82,17 @@
 \alignauthor
 Siu Kwan Lam\\
     \affaddr{Continuum Analytics}\\
-    \affaddr{Somewhere}\\
     \affaddr{Austin, Texas}\\
     \email{siu@continuum.io}
 % 2nd. author
 \alignauthor
 Antoine Pitrou\\
     \affaddr{Continuum Analytics}\\
-    \affaddr{Somewhere}\\
     \affaddr{Austin, Texas}\\
     \email{antoine.pitrou@continuum.io}
 }
 
-\date{30 July 1999}
+\date{1 Sept 2015}
 
 % Just remember to make sure that the TOTAL number of authors
 % is the number that will appear on the first page PLUS the
@@ -106,11 +104,11 @@ This is the abstract.
 \end{abstract}
 
 % A category with the (minimum) three required fields
-\category{H.4}{TODO}{Miscellaneous}
+\category{D.3.4}{Programming Languages}{Processors}[Compilers, Optimization]
 %A category including the fourth, optional field follows...
-\category{D.2.8}{TODO}{Metrics}[complexity measures, performance measures]
+%\category{I.2.5}{Porgramming Languages and Software}{Metrics}[complexity measures, performance measures]
 
-\terms{Theory}
+\terms{Languages, Performance}
 
 \keywords{LLVM, Python, Compiler} % NOT required for Proceedings
 
@@ -148,7 +146,7 @@ of Python objects, and generally requires a lot of boilerplate code even
 for simple use cases.  Numba lets users annotate a compute-intensive Python
 function for compilation without rewriting the code in a low-level language.
 
-\section{What is Numba?}
+\section{JIT for Numeric Python}
 
 Numba is a function-at-a-time Just-in-Time compiler for CPython
 \cite{wikipedia:cpython}, the most popular implementation of Python which,
@@ -165,8 +163,8 @@ The basic structure of the ndarray consists of the data pointer to the base of
 the memory buffer and two integer arrays for the dimensionality (aka shape) and
 the strides. Numba can directly access these fields for calculating the offset
 of each element.  As a result, it can generate efficient loops that indexes
-into ndarrays that are as fast as their FORTRAN counterpart
-(TODO: benchmark for proof). As it continues to develop, the support language
+into ndarrays with performance similar to their counterpart written in compiled
+language. As it continues to develop, the support language
 subset is expanding. Currently, it can handle high-level features such as
 generators and array expressions.
 
@@ -238,7 +236,7 @@ aims to extract extremely good performance, comparable to what C or Fortran
 code would achieve (or even better, when running on the GPU).
 
 
-\section{How Numba Works?}
+\section{Implementation}
 
 Numba relies on user annotation by using a Python decorator (@jit) on functions.
 The decorator subsitute the function object with a special object that triggers
@@ -368,7 +366,8 @@ Python object type.
 \subsection{High-Level Optimizations}
 
 With type annotation on each variable in the Numba IR, several high-level
-optimizations are performed.
+optimizations are performed before lowering. These optimizations exploits
+high-level knowledge of the Python semantic.
 
 \subsubsection{Deferred Loop Specialization}
 
@@ -378,17 +377,30 @@ The new function acts like a Numba \textit{@jit} decorated function and
 waits for callsite compilation. This provides a second chance for Numba to
 optimize any compute intensive loop.
 
-The CPython bytecode makes loop detection easy. There is a \textit{SETUP\_LOOP}
-bytecode that describes the span of each loop. Numba can simply copy all
-bytecodes marked by the \textit{SETUP\_LOOP} into a new function.
+Detecting loop with CPython bytecode is effortless. The \textit{SETUP\_LOOP}
+bytecode describes the span of each loop. Numba can simply copy all
+bytecodes marked by the \textit{SETUP\_LOOP} into a new function. The loop in
+the original function is replaced with a function call to the extracted loop.
 
 \subsubsection{Array Expression}
 
 Array expressions are formed by applying built-in Python operators on
 ndarray objects. After type inference, an optimization pass search for any
 array expression and rewrite them into a loop. This avoids allocating
-temporary arrays for intermedate results.
-(TODO: Need more details)
+temporary arrays for intermedate results when an array expression contains
+multiple operations.  For example:
+
+\begin{lstlisting}
+@jit
+def axpy(a, x, y):
+  return a * b + c
+\end{lstlisting}
+
+In the \textit{axpy} function that takes three ndarrays, the normal Python
+execution will allocate an array for the multiplication and one for the
+addition. Numba will rewrite it in a loop over the three arrays with just
+one allocated output array.  Each iteration computes both the multiplication
+and addition for each element in the array.
 
 \subsection{Lowering}
 
@@ -403,11 +415,21 @@ returned values is boxed from the machine representation back to the Python
 objects.
 
 
-\section{Working with LLVM}
+\section{Using LLVM}
 
-Here, we describe our experience in using LLVM.
+In this section, we describe our experience with LLVM.
+LLVM provides a simple API into a high quality compiler backend with
+a JIT support readily available. We can focus the development effort
+on the frontend without immense knowledge of the processor instruction set.
+Once we have a working CPU backend, porting Numba to support CUDA and HSA GPUs
+are not difficult.
 
-\subsection{API stability}
+LLVM is arguably the best library for compiler developers but there are still
+some issues and potential improvement. In the rest of
+this section, we share several challanges we encountered and our experience
+in trying to workaround them. 
+
+\subsection{API Stability}
 
 LLVM development is fast and its C++ API changes frequently.
 In early days of Numba development, we maintained a Python binding,
@@ -418,7 +440,7 @@ we adopted the C API instead and added any missing interface to the C++ API.
 The new binding is called llvmlite \cite{rtd:llvmlite}.  It mimicks the
 C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
 
-\subsection{Error handling}
+\subsection{Error Handling}
 
 Error handling inside LLVM doesn't follow a consistent convention,
 and seems mostly a best-effort concern.  Some errors are ignored or
@@ -431,9 +453,6 @@ errors in the expected way, i.e. as Python exceptions.
 
 Furthermore, since error conditions are not much exercised by the test
 suite, regressions can sometimes happen. \cite{llvmbugs:llvmparsebitcode}
-
-(TODO: Convey buffer contiguousness by GEP and not strides.
-NumPy uses strides only.)
 
 \subsection{Managing ABI}
 
@@ -452,14 +471,14 @@ To handle Python exceptions in compiled code, Numba uses the return value of
 the compiled function for error code. The actual return value is passed
 in the first argument. This error code style is the same as the CPython API.
 
-\subsection{Cross module linkage, OrcJIT}
+\subsection{Cross Module Linkage}
 
 The legacy JIT in LLVM supports lazy compilation and allows function-at-a-time
-code generation.  However, the new MCJIT does not. As as result, Numba must
-compile each function in a new LLVM module and finalize it immediately to
-trigger code generation. If function \textit{foo} calls \textit{bar},
-we need to register the address of \textit{bar} to the execution engine
-before the finalization of \textit{foo}; otherwise, the finalization of
+code generation.  However, the new MCJIT does not. With the legacy replaced
+by MCJIT, Numba must compile each function in a new LLVM module and finalize it
+immediately to trigger code generation. If function \textit{foo} calls
+\textit{bar}, we need to register the address of \textit{bar} to the execution
+engine before the finalization of \textit{foo}; otherwise, the finalization of
 \textit{foo} will fail due to unresolved reference to \textit{bar}.
 This makes handling of mutual recursion difficult.
 
@@ -470,12 +489,12 @@ LLVM functions can be duplicated in many modules; thus, increasing the memory
 use.
 
 % http://llvm.cc/t/llvmdev-new-jit-api-orcjit/219
-Fortunately, the On-Request-Compilation (ORC) JIT is an attempt to bring back
-lost feature of the legacy JIT. (TODO: what else can I say?)
+% Fortunately, the On-Request-Compilation (ORC) JIT is an attempt to bring back
+% lost feature of the legacy JIT. (TODO: what else can I say?)
 
 \subsection{Object Cache}
 
-LLVM's MCJIT, which is used by Numba, features callback hooks for
+The MCJIT features callback hooks for
 applications to implement a form of object caching.  It works
 as follows \cite{llvmdoc:objectcache}.
 Before compiling a module, the MCJIT execution engine
@@ -528,8 +547,8 @@ My conclusion
 %\end{document}  % This is where a 'short' article might terminate
 
 %ACKNOWLEDGMENTS are optional
-\section{Acknowledgments}
-Optional section
+% \section{Acknowledgments}
+% Optional section
 
 %
 % The following two commands are all you need in the
