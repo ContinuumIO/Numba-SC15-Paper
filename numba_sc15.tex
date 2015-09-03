@@ -61,7 +61,9 @@
 % without further effort on your part as the last section in
 % the body of your article BEFORE References or any Appendices.
 
-\numberofauthors{8} %  in this sample file, there are a *total*
+\numberofauthors{2}
+
+%  in this sample file, there are a *total*
 % of EIGHT authors. SIX appear on the 'first-page' (for formatting
 % reasons) and the remaining two appear in the \additionalauthors section.
 %
@@ -79,52 +81,21 @@
 % 1st. author
 \alignauthor
 Siu Kwan Lam\\
-       \affaddr{Continuum Analytics}\\
-       \affaddr{Somewhere}\\
-       \affaddr{Austin, Texas}\\
-       \email{siu@continuum.io}
+    \affaddr{Continuum Analytics}\\
+    \affaddr{Somewhere}\\
+    \affaddr{Austin, Texas}\\
+    \email{siu@continuum.io}
 % 2nd. author
 \alignauthor
-Add Your Name\\
-       \affaddr{Institute for Clarity in Documentation}\\
-       \affaddr{P.O. Box 1212}\\
-       \affaddr{Dublin, Ohio 43017-6221}\\
-       \email{webmaster@marysville-ohio.com}
-% 3rd. author
-\alignauthor
-Add Your Name\\
-       \affaddr{The Th{\o}rv{\"a}ld Group}\\
-       \affaddr{1 Th{\o}rv{\"a}ld Circle}\\
-       \affaddr{Hekla, Iceland}\\
-       \email{larst@affiliation.org}
-\and  % use '\and' if you need 'another row' of author names
-% 4th. author
-\alignauthor Add Your Name\\
-       \affaddr{Brookhaven Laboratories}\\
-       \affaddr{Brookhaven National Lab}\\
-       \affaddr{P.O. Box 5000}\\
-       \email{lleipuner@researchlabs.org}
-% 5th. author
-\alignauthor Add Your Name\\
-       \affaddr{NASA Ames Research Center}\\
-       \affaddr{Moffett Field}\\
-       \affaddr{California 94035}\\
-       \email{fogartys@amesres.org}
-% 6th. author
-\alignauthor Add Your Name\\
-       \affaddr{Palmer Research Laboratories}\\
-       \affaddr{8600 Datapoint Drive}\\
-       \affaddr{San Antonio, Texas 78229}\\
-       \email{cpalmer@prl.com}
+Antoine Pitrou\\
+    \affaddr{Continuum Analytics}\\
+    \affaddr{Somewhere}\\
+    \affaddr{Austin, Texas}\\
+    \email{antoine.pitrou@continuum.io}
 }
-% There's nothing stopping you putting the seventh, eighth, etc.
-% author on the opening page (as the 'third row') but we ask,
-% for aesthetic reasons that you place these 'additional authors'
-% in the \additional authors block, viz.
-\additionalauthors{Additional authors: John Smith (The Th{\o}rv{\"a}ld Group,
-email: {\texttt{jsmith@affiliation.org}}) and Julius P.~Kumquat
-(The Kumquat Consortium, email: {\texttt{jpkumquat@consortium.net}}).}
+
 \date{30 July 1999}
+
 % Just remember to make sure that the TOTAL number of authors
 % is the number that will appear on the first page PLUS the
 % number that will appear in the \additionalauthors section.
@@ -167,13 +138,15 @@ ndarrays will trigger element-wise operations that are implemented in C
 efficiently.  However, a trivial looping of the elements in Python is
 inefficient due to the layers of indirection inside interpreted code.
 
-Numba is initially developed to optimize the inefficient use-cases of NumPy.
-The layers of indirection for ndarray indexing is flattend into direct loading
-from pointers.  Before Numba, NumPy users must write Python C-extension to
-implement any custom computation.  The process can be error-prone due to manual
-handling of reference counting of Python objects. Numba lets user annotate
-the compute-intensive Python function for compilation without changing rewriting
-the code.
+Numba \cite{numba:numba} is initially developed to optimize the inefficient
+use-cases of NumPy.
+The layers of indirection for ndarray indexing are flattened into direct
+loading from pointers.  Before Numba, NumPy users had to write Python
+C extensions to implement any custom computation in an efficient way.
+The process can be error-prone due to manual handling of reference counting
+of Python objects, and generally requires a lot of boilerplate code even
+for simple use cases.  Numba lets users annotate a compute-intensive Python
+function for compilation without rewriting the code in a low-level language.
 
 \section{What is Numba?}
 
@@ -241,6 +214,7 @@ for Python.  Closest to Numba perhaps was Psyco, an opt-in compiler layered
 on the CPython interpreter.  Psyco featured its own x86-only code generator
 and was discontinued by its author, Armin Rigo, because its architecture
 made maintenance and evolution difficult.  \cite{wikipedia:psyco}
+\cite{rigo2004representation}
 
 Another related effort was Unladen Swallow, a project initiated by some
 Google engineers to produce an evolution of the CPython interpreter augmented
@@ -422,7 +396,19 @@ we adopted the C API instead and added any missing interface to the C++ API.
 The new binding is called llvmlite \cite{rtd:llvmlite}.  It mimicks the
 C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
 
-(TODO: talk about C assertion in LLVM)
+\subsection{Error handling}
+
+Error handling inside LLVM doesn't follow a consistent convention,
+and seems mostly a best-effort concern.  Some errors are ignored or
+left unpropagated, which can lead to hard crashes later on
+\cite{llvmbugs:selinux}. Other errors are reported by the API as a status
+code.  Other errors yet trigger an assert() in the C++ source code, and
+therefore a controlled process crash at runtime.  Crashes (either
+controlled or unpredictable) do not allow the Python binding to report
+errors in the expected way, i.e. as Python exceptions.
+
+Furthermore, since error conditions are not much exercised by the test
+suite, regressions can sometimes happen. \cite{llvmbugs:llvmparsebitcode}
 
 (TODO: Convey buffer contiguousness by GEP and not strides.
 NumPy uses strides only.)
