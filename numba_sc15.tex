@@ -30,7 +30,7 @@
 
 \begin{document}
 
-\title{Numba: LLVM Practitioner Report}
+\title{Numba: A LLVM-based Python JIT}
 % \subtitle{[Extended Abstract]
 %\titlenote{A full version of this paper is available as
 %\textit{Author's Guide to Preparing ACM SIG Proceedings Using
@@ -92,7 +92,7 @@ Antoine Pitrou\\
     \email{antoine.pitrou@continuum.io}
 }
 
-\date{1 Sept 2015}
+\date{3 Sept 2015}
 
 % Just remember to make sure that the TOTAL number of authors
 % is the number that will appear on the first page PLUS the
@@ -100,7 +100,14 @@ Antoine Pitrou\\
 
 \maketitle
 \begin{abstract}
-This is the abstract.
+Dynamic, interpreted languages is attractive for domain-experts and scientist
+for experimenting with new ideas.  However, the performance of the interpreter
+is often a barrier for scaling a prototype into operating on large dataset.
+This paper presents a just-in-time compiler for Python that focuses in
+scientific computing. Starting with the simple syntax of Python, Numba compiles
+a subset of the language into efficient machine code that is comparable to
+traditional compiled language. In addition, we share our experience in building
+a JIT compiler using LLVM.
 \end{abstract}
 
 % A category with the (minimum) three required fields
@@ -113,9 +120,6 @@ This is the abstract.
 \keywords{LLVM, Python, Compiler} % NOT required for Proceedings
 
 \section{Introduction}
-TODO
-
-\section{Background}
 
 Python is a dynamically typed, interpreted language.
 It is regarded as a high productivity language due to its simple syntax,
@@ -427,7 +431,7 @@ are not difficult.
 LLVM is arguably the best library for compiler developers but there are still
 some issues and potential improvement. In the rest of
 this section, we share several challanges we encountered and our experience
-in trying to workaround them. 
+in trying to workaround them.
 
 \subsection{API Stability}
 
@@ -543,7 +547,12 @@ execution engine API), therefore an imperative API would have been as
 well suited to the task.
 
 \section{Conclusions}
-My conclusion
+
+We presented Numba, a Python JIT compiler that focuses in numeric
+performance, which is critical for many scientific application. It offers
+deferred loop specialization, array expression rewrite and multiple backend
+support. Finally, we shared our experience and feedback in using LLVM.
+
 %\end{document}  % This is where a 'short' article might terminate
 
 %ACKNOWLEDGMENTS are optional
