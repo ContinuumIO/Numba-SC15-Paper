@@ -238,8 +238,10 @@ practical, but leave an option for user permit the violation of Python
 semantics for optimization reason.
 
 One novel feature of Numba is its support for targeting different
-hardware.  It currently provides an NVIDIA CUDA backend using the NVVM
-library, and an AMD HSA backend is also available on APU by using HLC.
+hardware.  It currently provides an NVIDIA CUDA\cite{CUDA} backend using the
+NVVM\footnote{\url{http://docs.nvidia.com/cuda/nvvm-ir-spec/}}
+library, and an AMD HSA\cite{HSA} backend is also available on APU by using
+HLC\footnote{\url{https://github.com/HSAFoundation/HLC-HSAIL-Development-LLVM}}.
 Both NVVM and HLC are vendor-specific version of LLVM with additional
 support for their hardware.  Rather than attempt to create a portable
 execution model supported by all targets, Numba directly exposes the
