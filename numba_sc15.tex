@@ -30,7 +30,7 @@
 
 \begin{document}
 
-\title{Numba: A LLVM-based Python JIT}
+\title{Numba: A LLVM-based Python JIT Compiler}
 % \subtitle{[Extended Abstract]
 %\titlenote{A full version of this paper is available as
 %\textit{Author's Guide to Preparing ACM SIG Proceedings Using
@@ -140,50 +140,57 @@ multi-dimensional array (ndarray) object that has become the
 foundation of efficient numeric computation in Python.
 
 A ndarray is a homogenously-typed data memory buffer.  Data can be
-stored in either C-contiguous, FORTRAN-contiguous or have arbitrary
+stored in either C contiguous, FORTRAN contiguous or have arbitrary
 strides at each dimension.  This allows binding to high performance
 computing libraries that are traditionally written in C or FORTRAN,
-such as BLAS and LAPACK. The ndarray support array expression: using
-Python operators on ndarrays will trigger element-wise operations that
-are implemented in C efficiently.  However, a trivial looping of the
-elements in Python is inefficient due to the layers of indirection
-inside interpreted code.
+such as BLAS and LAPACK. The ndarray object also supports array
+expressions: using Python operators on ndarrays will trigger
+element-wise operations that are implemented in C efficiently.  This
+provides a large speedup over interpreted Python, where looping over
+the elements in Python is inefficient due to the multiple layers of
+indirection inside interpreted code.
 
-Numba \cite{numba:numba} is initially developed to optimize the inefficient
-use-cases of NumPy.
-The layers of indirection for ndarray indexing are flattened into direct
-loading from pointers.  Before Numba, NumPy users had to write Python
-C extensions to implement any custom computation in an efficient way.
-The process can be error-prone due to manual handling of reference counting
-of Python objects, and generally requires a lot of boilerplate code even
-for simple use cases.  Numba lets users annotate a compute-intensive Python
-function for compilation without rewriting the code in a low-level language.
+Numba \cite{numba:numba} was initially developed to optimize the
+inefficient use-cases of NumPy.  The layers of indirection for ndarray
+indexing in the interpreter are translated into direct loads and
+stores from pointers.  Before Numba, NumPy users had to write Python C
+extensions (or use hybrid languages like Cython \cite{behnel:cython})
+to implement any custom computation in an efficient way.  This process
+can be error-prone due to the difficulty of manually managing the
+reference counts of Python objects, and generally requires a lot of
+boilerplate code even for simple use cases.  Numba lets users annotate
+a compute-intensive Python function for compilation without rewriting
+the code in a low-level language.
 
 \section{A JIT for Numeric Python}
 
-Numba is a function-at-a-time Just-in-Time compiler for CPython
-\cite{wikipedia:cpython}, the most popular implementation of Python which,
-as the name suggests, is written C.
-It exists as a library to CPython and does not replace the interpeter.
-Its initial focus is to target a Python subset that makes heavy use of
-ndarrays in loops, so that users no longer need to rewrite their Python code in
-low-level languages for better performance.
-The ndarray provides important dimensionality, type and data layout information
-that allows Numba to generate specialized  loops for arrays in machine code.
-By knowing the native structure of ndarray,
-it bypasses unnecessary indirection for accessing data in ndarrays.
-The basic structure of the ndarray consists of the data pointer to the base of
-the memory buffer and two integer arrays for the dimensionality (aka shape) and
-the strides. Numba can directly access these fields for calculating the offset
-of each element.  As a result, it can generate efficient loops that indexes
-into ndarrays with performance similar to their counterpart written in compiled
-language (see Table \ref{table:speedup}). As it continues to develop, the support language
-subset is expanding. Currently, it can handle high-level features such as
-generators and array expressions.
+Numba is a function-at-a-time Just-in-Time (JIT) compiler for CPython
+\cite{wikipedia:cpython}, the most popular implementation of Python
+which, as the name suggests, is written C.  Numba is implemented as a
+library that can be loaded by programs running in the CPython
+interpreter and does not replace the interpeter itself.  Its initial
+focus is to target a Python subset that makes heavy use of ndarrays
+and numeric scalars in loops so that users no longer need to rewrite
+their Python code in low-level languages for better performance.  The
+ndarray provides important dimensionality, type and data layout
+information that allows Numba to generate specialized loops for arrays
+in machine code.  By knowing the native in-memory structure of ndarray
+objects, Numba bypasses unnecessary indirection for accessing data in
+ndarrays.  The basic structure of the ndarray consists of the data
+pointer to the base of the memory buffer and two integer arrays
+describing the dimensionality (aka shape) and the strides between
+elements along each dimension. Numba can directly access these fields
+for calculating the offset of an element given an index value.  As a
+result, it can generate efficient loops that index into ndarrays with
+performance similar to equivalent code written in compiled language
+(see Table \ref{table:speedup}). As Numba continues to develop, the
+supported subset of the Python language and standard library data
+types is expanding.  For example, Numba can already generate efficient
+code for high-level Python/NumPy features such as generators and array
+expressions.
 
 \begin{table}
 \centering
-\caption{Speedup over CPython in Naive Matrix Multiplication}
 \label{table:speedup}
 \begin{tabular}{|c|c|c|} \hline
 \textbf{Matrix Size} & \textbf{Numba} & \textbf{C}\\ \hline
@@ -192,49 +199,55 @@ generators and array expressions.
 256 x 256 & 280x & 263x \\ \hline
 512 x 512 & 276x & 268x \\ \hline
 \end{tabular}
+\caption{Numba (version 0.20) and pure C speedups over CPython (version 3.4) for a naive implementation of matrix multiplication.}
 \end{table}
 
 % jit speedup [ 463.5193133   454.40414508  280.73770492  276.26262626]
 % c   speedup [ 453.78151261  407.90697674  263.46153846  268.1372549 ]
 
 
-Unlike most Just-in-Time compilers for interpreted languages, Numba does not
-perform tracing nor replace the interpreter.
-Instead, it relies on user actively replacing the functions that need compiling.
-In Python, this is done by applying a decorator to the function.
-The decorator replaces the original Python function with a special object
-that just-in-time compiles the function when being called.
-To relieve user from the burden of type annotation, Numba inspect the types
-of the arguments for local type inference on the function.
-As a result, it can have accurate type information for each values without
-tracing the execution.
+Unlike most JIT compilers for interpreted languages, Numba does not
+perform tracing nor replace the interpreter.  Instead, it relies on
+the user actively transforming the Python functions that need
+compiling at runtime.  In Python, this is done by applying a decorator
+to the function.  The decorator replaces the original Python function
+with a special object that just-in-time compiles the function when it
+is first called with a new type signature.  To relieve user from the
+burden of explicit type annotation, Numba inspects the types of the
+arguments and performs local type inference on the function.  As a
+result, the compiler can have accurate type information for each value
+in the function without tracing the execution.
 
-The semantic of the compiled code slightly differs
-from the interpreted. Numba supports a subset of the language only
-and violates some semantic of Python.  It does not support big integers
-and is limited to 64-bit integer for the maximum representable integer type.
-All arithmetic operations on 64-bit integer wraparound when the result
-overflow.  Variable type are not polymorphic.  Implicit coercion occurs when
-a type is assigned to a variable of a different type. In practice, these
-restrictions and deviations from Python semantic rarely affect the user
-because the ndarray already has similar limitations. On the other hand, these
-limitations allow for aggressive optimization.  As Numba continues to develop,
-we aim to remove these limitions, but leave an option for user permit the
-violation of Python semantic for optimization reason.
+The semantics of the Numba-compiled code differ slightly from code
+interpreted by CPython. Numba only supports a subset of the language
+and violates some semantics of Python in a few specific areas that are
+generally acceptable for high performance numeric use cases.  The
+compiler does not support the ``big integer'' representation used in
+Python to represent integers of arbitrary size.  Instead, it is
+limited to fixed width integer types up to 64-bits in size, with
+semantics similar similar to many C platforms.  Polymorphic types are
+not supported during execution, requiring the compiler to be able to
+resolve all polymorphism at compile time (when the function is
+called).  Implicit coercion occurs when a type is assigned to a
+variable of a different type. In practice, these restrictions and
+deviations from Python semantics rarely affect the user because the
+ndarray object already has similar limitations. On the other hand,
+these limitations allow for aggressive optimization by the compiler.
+As Numba continues to develop, we aim to remove these limitions when
+practical, but leave an option for user permit the violation of Python
+semantics for optimization reason.
 
-A novelty of Numba is its multi-target backend.  It currently supports NVIDIA
-CUDA backend by using NVVM.  Support for AMD HSA is also available on APU by
-using HLC.  Both NVVM and HLC are vendor-specific version of LLVM for
-additional support for their hardware.  Multi-target support is an important
-reason for the restricting the supported language.
-Numba maps directly to the execution model of the GPGPU architectures.
-Thus, it inherits all limitations.
-Highly divergent code runs inefficiently on GPGPUs due to thread divergence.
-Executing certain GPGPU specific constructs, like a thread barrier, by diverged
-threads results in undefined behavior. Forcing each variable to be single-typed
-avoids implicit branching that are hidden from user for fine-tuning the
-performance and to avoid undefined behavior.
-
+One novel feature of Numba is its support for targeting different
+hardware.  It currently provides an NVIDIA CUDA backend using the NVVM
+library, and an AMD HSA backend is also available on APU by using HLC.
+Both NVVM and HLC are vendor-specific version of LLVM with additional
+support for their hardware.  Rather than attempt to create a portable
+execution model supported by all targets, Numba directly exposes the
+execution model of each GPGPU architecture to Python.  This allows the
+user to tailor their code to the specific features and performance
+characteristics of each architecture.  Numba provides access to
+platform specific operations, such as thread barriers and atomic
+operations on GPGPU targets.
 
 \section{Other Just-in-Time compilers for Python}
 
