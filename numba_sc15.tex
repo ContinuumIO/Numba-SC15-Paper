@@ -109,7 +109,7 @@ Stanley Seibert\\
 Dynamic, interpreted languages, like Python, are attractive for
 domain-experts and scientists experimenting with new ideas.  However,
 the performance of the interpreter is often a barrier when scaling to
-larger datasets.  This paper presents a just-in-time compiler for
+larger data sets.  This paper presents a just-in-time compiler for
 Python that focuses in scientific and array-oriented
 computing. Starting with the simple syntax of Python, Numba compiles a
 subset of the language into efficient machine code that is comparable
@@ -139,7 +139,7 @@ scientific libraries in the Python ecosystem as it provides a
 multi-dimensional array (ndarray) object that has become the
 foundation of efficient numeric computation in Python.
 
-A ndarray is a homogenously-typed data memory buffer.  Data can be
+A ndarray is a homogeneously-typed data memory buffer.  Data can be
 stored in either C contiguous, FORTRAN contiguous or have arbitrary
 strides at each dimension.  This allows binding to high performance
 computing libraries that are traditionally written in C or FORTRAN,
@@ -168,7 +168,7 @@ Numba is a function-at-a-time Just-in-Time (JIT) compiler for CPython
 \footnote{\url{https://www.python.org/}}, the most popular
 implementation of Python which, as the name suggests, is written C.
 Numba is implemented as a library that can be loaded by programs
-running in the CPython interpreter and does not replace the interpeter
+running in the CPython interpreter and does not replace the interpreter
 itself.  Its initial focus is to target a Python subset that makes
 heavy use of ndarrays and numeric scalars in loops so that users no
 longer need to rewrite their Python code in low-level languages for
@@ -209,7 +209,7 @@ features such as generators and array expressions.
 Unlike most JIT compilers for interpreted languages, Numba does not
 perform tracing nor replace the interpreter.  Instead, it relies on
 the user actively transforming the Python functions that need
-compiling at runtime.  In Python, this is done by applying a decorator
+compiling at run-time.  In Python, this is done by applying a decorator
 to the function.  The decorator replaces the original Python function
 with a special object that just-in-time compiles the function when it
 is first called with a new type signature.  To relieve user from the
@@ -233,14 +233,14 @@ variable of a different type. In practice, these restrictions and
 deviations from Python semantics rarely affect the user because the
 ndarray object already has similar limitations. On the other hand,
 these limitations allow for aggressive optimization by the compiler.
-As Numba continues to develop, we aim to remove these limitions when
+As Numba continues to develop, we aim to remove these limitations when
 practical, but leave an option for user permit the violation of Python
 semantics for optimization reason.
 
 One novel feature of Numba is its support for targeting different
-hardware.  It currently provides an NVIDIA CUDA\cite{CUDA} backend using the
+hardware.  It currently provides an NVIDIA CUDA\cite{CUDA} back-end using the
 NVVM\footnote{\url{http://docs.nvidia.com/cuda/nvvm-ir-spec/}}
-library, and an AMD HSA\cite{HSA} backend is also available on APU by using
+library, and an AMD HSA\cite{HSA} back-end is also available on APU by using
 HLC\footnote{\url{https://github.com/HSAFoundation/HLC-HSAIL-Development-LLVM}}.
 Both NVVM and HLC are vendor-specific version of LLVM with additional
 support for their hardware.  Rather than attempt to create a portable
@@ -273,7 +273,7 @@ significant results for reasons which were explained by one of its authors.
 \cite{kleckner:unladen_swallow_post_mortem}
 
 Other Python JIT compilers have avoided building on CPython, either
-re-using a significant portion of the CPython runtime or building
+re-using a significant portion of the CPython run-time or building
 their own.  Of the two main active projects today, PyPy
 \cite{pypy:pypy} has built its own compilation infrastructure from
 scratch, whereas the other
@@ -282,8 +282,8 @@ LLVM.  Both claim or intend to support the full range of features
 Python offers.
 
 Compared to those, Numba is much more opportunistic and opinionated.
-It focuses on a narrow subset of Python's usecases from which it aims
-to extract extremely good performance, comparable to what C or Fortran
+It focuses on a narrow subset of Python's use-cases from which it aims
+to extract extremely good performance, comparable to what C or FORTRAN
 code would achieve (or even better, when running on the GPU).  Numba
 is also designed to support different execution models, allowing both
 CPU and GPU code to be handled by a common compiler framework.
@@ -292,7 +292,7 @@ CPU and GPU code to be handled by a common compiler framework.
 \section{Implementation}
 
 Numba relies on user annotation by using a Python decorator (@jit) on functions.
-The decorator subsitute the function object with a special object that triggers
+The decorator substitute the function object with a special object that triggers
 the compilation when called. When a decorated function is called,
 the call arguments are inspected. If the set of argument types have not appeared
 before, Numba compile will compile a specialized version of the function for the
@@ -334,7 +334,7 @@ x86 assembly.  Instructions are variable length. Branches are encoded
 as absolute or relative jump instructions. Some bytecode instructions
 perform multiple tasks.  For instance, the
 \textit{JUMP\_IF\_TRUE\_OR\_POP} jump to the target address if the
-value on the top-of-stack (TOS) evalutes to true; otherwise, pop the
+value on the top-of-stack (TOS) evaluates to true; otherwise, pop the
 TOS value.  Another complex instruction is the FOR\_ITER instruction.
 It is used in the encoding of the for-loop construct.  This
 instruction asks for the next value of the iterator at TOS.  If the
@@ -377,13 +377,13 @@ incoming basic blocks.
 \subsection{Internal Representation}
 
 With the control-flow information and the stack-to-register mapping
-of the bytecode, the bytecode is translated into an internal represenation,
+of the bytecode, the bytecode is translated into an internal representation,
 called the Numba IR. The Numba IR is a higher-level representation of the
 function logic than the bytecode. It captures the control-flow as basic-blocks
 and values in variables.
 
 During the translation to the Numba IR, a notion of scoping is introduce to
-minimize the effect of monotyping for variables. An assignment to a variable
+minimize the effect of mono-typing for variables. An assignment to a variable
 is considered a new variable definition when the definition is visible by all
 subsequent basic-blocks. Otherwise, the assignment stores the new value to
 the previous definition.  For example:
@@ -409,7 +409,7 @@ calls to \textit{bar} will be calling different overloaded versions.
 Local type inference is applied to the Numba IR at call time so that
 the type of the argument is known. A data-dependency graph is built
 for propagating the type of each value.  Each node of the graph is an
-function call (builtin operators, such as addition, are implicit
+function call (built-in operators, such as addition, are implicit
 function calls). Knowledge of function signatures is encoded in a
 registry.  Given the argument types, the type inferencer looks up the
 corresponding entry for the function and gets the return type. If a
@@ -438,7 +438,7 @@ loop to run in nopython mode.
 
 Detecting loops with CPython bytecode is very simple. The
 \textit{SETUP\_LOOP} bytecode describes the span of each loop. Numba
-can simply copy all bytecodes marked by the \textit{SETUP\_LOOP} into
+can simply copy all bytecodes marked by the \textit{SETUP\-\_LOOP} into
 a new function. The loop in the original function is replaced with a
 function call to the extracted loop.
 
@@ -448,7 +448,7 @@ Array expressions are formed when built-in Python operators, such as
 addition and exponentiation, are applied to ndarray objects. After
 type inference, an optimization pass searches for any array expression
 and rewrites them into a loop. This avoids allocating temporary arrays
-for intermedate results when an array expression contains multiple
+for intermediate results when an array expression contains multiple
 operations.  For example, consider this function:
 
 \begin{lstlisting}
@@ -484,65 +484,68 @@ Python objects.
 \section{Using LLVM}
 
 In this section, we describe our experience with LLVM.
-LLVM provides a simple API into a high quality compiler backend with
+LLVM provides a simple API into a high quality compiler back-end with
 JIT support readily available. We can focus the development effort
-on the frontend without immense knowledge of the processor instruction set.
-Once we had a working CPU backend, porting Numba to support CUDA and HSA GPUs
+on the front-end without immense knowledge of the processor instruction set.
+Once we had a working CPU back-end, porting Numba to support CUDA and HSA GPUs
 was not difficult.
 
 LLVM is arguably the best library for compiler developers but there are still
 some issues and potential improvement. In the rest of
-this section, we share several challanges we encountered and our experience
+this section, we share several challenges we encountered and our experience
 in trying to workaround them.
 
 \subsection{API Stability}
 
-LLVM development is fast and its C++ API changes frequently.
-In early days of Numba development, we maintained a Python binding,
-called llvmpy, to the C++ API and have tried to keep a binding that
-mirrors the C++ interface, but this was soon proven to be difficult.
-To simplify the binding and to minimize its exposure to the LLVM C++ API,
-we adopted the C API instead and added any missing interface to the C++ API.
-The new binding is called llvmlite\footnote{\url{http://llvmlite.pydata.org/}}.
-It mimicks the C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
+LLVM development is fast and its C++ API changes frequently.  In early
+days of Numba development, we maintained a Python binding, called
+llvmpy, to the C++ API and have tried to mirror the C++ interface in
+Python, but this was found to be very difficult.  To simplify the
+binding and to minimize its exposure to the LLVM C++ API, we adopted
+the LLVM C API instead and added any missing C wrappers around parts
+of the LLVM C++ API that were needed.  The new binding is called
+llvmlite\footnote{\url{http://llvmlite.pydata.org/}}.  It includes a
+pure Python implementation of the the LLVM C++ IRBuilder API and build
+a string representation of the LLVM IR.
 
 \subsection{Error Handling}
 
-Error handling inside LLVM doesn't follow a consistent convention,
+Error handling inside LLVM does not follow a consistent convention,
 and seems mostly a best-effort concern.  Some errors are ignored or
 left unpropagated, which can lead to hard crashes later on
-\footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=6701}}.
-Other errors are reported by the API as a status
-code.  Other errors yet trigger an assert() in the C++ source code, and
-therefore a controlled process crash at runtime.  Crashes (either
-controlled or unpredictable) do not allow the Python binding to report
-errors in the expected way, i.e. as Python exceptions.
+\footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=6701}}.  Other
+errors are reported by the API as a status code.  Other errors yet
+trigger an assert() in the C++ source code, and therefore create a
+controlled process crash at runtime.  Crashes (either controlled or
+unpredictable) do not allow the Python binding to report errors to the
+user in the expected way, i.e. as Python exceptions.
 
-Furthermore, since error conditions are not much exercised by the test
+Furthermore, since error conditions are not exercised as much by the test
 suite, regressions can sometimes happen.
 \footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=22368}}
 
 \subsection{Managing ABI}
 
 LLVM does not provide an abstraction for handling \textit{application binary
-interface}(ABI). It is left for the frontend to handle this architecture
-specific detail.  While we understand that ABI can be part of a lanuguage
-design, a facility for support basic C ABI inside LLVM can simplify most of the
-ABI issue.
+interface}(ABI). It is left for the front-end to handle this architecture
+specific detail.  While we understand that ABI can be part of a language
+design, a facility for support basic C ABI inside LLVM would simplify most of the
+ABI issues.
 
-To handle the different ABI of multiple arhitectures, including GPGPUs which
-has a more restrictive ABI, Numba avoids using any aggregate types as function
-arguments or return type in the low-level code.  Instead, all aggregates are
-flattened to simple scalars, e.g. intergers, float and pointers.
+To handle the different ABIs of various architectures, including GPGPUs which
+have more restrictive ABIs, Numba avoids using any aggregate types as function
+arguments or return types in the low-level code.  Instead, all aggregates are
+flattened to simple scalars, e.g. integers, float and pointers.
 
-To handle Python exceptions in compiled code, Numba uses the return value of
-the compiled function for error code. The actual return value is passed
-in the first argument. This error code style is the same as the CPython API.
+To handle Python exceptions in compiled code, Numba uses the return
+value of the compiled function for error code. The actual return value
+is passed via the first argument. This error code passing style is the
+same as the CPython API.
 
 \subsection{Cross Module Linkage}
 
 The legacy JIT in LLVM supports lazy compilation and allows function-at-a-time
-code generation.  However, the new MCJIT does not. With the legacy replaced
+code generation.  However, the new MCJIT does not. With the legacy JIT replaced
 by MCJIT, Numba must compile each function in a new LLVM module and finalize it
 immediately to trigger code generation. If function \textit{foo} calls
 \textit{bar}, we need to register the address of \textit{bar} to the execution
@@ -556,6 +559,9 @@ and perform cross-module linking manually. A problem for this is that
 LLVM functions can be duplicated in many modules; thus, increasing the memory
 use.
 
+We will be investigating whether the new On-Request-Compilation JIT
+alleviates some of these issues.
+
 % http://llvm.cc/t/llvmdev-new-jit-api-orcjit/219
 % Fortunately, the On-Request-Compilation (ORC) JIT is an attempt to bring back
 % lost feature of the legacy JIT. (TODO: what else can I say?)
@@ -563,7 +569,7 @@ use.
 \subsection{Object Cache}
 
 The MCJIT features callback hooks for
-applications to implement a form of object caching.  It works as follows.
+applications to implement a form of object caching.
 Before compiling a module, the MCJIT execution engine
 calls the user-provided getObject() method.  That method can either
 return a pointer to an existing memory area, in which case that
@@ -579,8 +585,8 @@ the module's object code.
 
 This callback-based model works well for a trivial form of caching,
 where an LLVM module's object code is cached as-is, without any
-additional information (this is how object caching is demonstrated in
-the official Kaleidoscope tutorial \cite{llvmblog:kaleidoscope}.
+additional information\footnote{This is how object caching is demonstrated in
+the official Kaleidoscope tutorial \cite{llvmblog:kaleidoscope}}.
 However, more complex forms of
 caching need to serialize additional information beside the object code
 for the module.  In Numba, this ancillary information is two-fold.  First,
@@ -606,21 +612,21 @@ A callback-based API is essentially useful when events are produced from
 the outside, and/or in an uncontrolled way: for example, GUI or network
 events.  Here, the events are predictable by the application
 itself (compilation is triggered deterministically by calls to the
-execution engine API), therefore an imperative API would have been as
-well suited to the task.
+execution engine API), therefore an imperative API would have been 
+well-suited to the task.
 
 \section{Conclusions}
 
 We presented Numba, a Python JIT compiler that focuses in numeric
 performance, which is critical for many scientific application. It offers
-deferred loop specialization, array expression rewrite and multiple backend
+deferred loop specialization, array expression rewrite and multiple back-end
 support. Finally, we shared our experience and feedback in using LLVM.
 
 %\end{document}  % This is where a 'short' article might terminate
 
 %ACKNOWLEDGMENTS are optional
-% \section{Acknowledgments}
-% Optional section
+\section{Acknowledgments}
+We would like to acknowledge the support of the DARPA XDATA program for this work.
 
 %
 % The following two commands are all you need in the
