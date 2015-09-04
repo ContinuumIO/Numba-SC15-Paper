@@ -162,7 +162,7 @@ function for compilation without rewriting the code in a low-level language.
 \section{A JIT for Numeric Python}
 
 Numba is a function-at-a-time Just-in-Time compiler for CPython
-\cite{wikipedia:cpython}, the most popular implementation of Python which,
+\cite{projectlink:cpython}, the most popular implementation of Python which,
 as the name suggests, is written C.
 It exists as a library to CPython and does not replace the interpeter.
 Its initial focus is to target a Python subset that makes heavy use of
@@ -242,12 +242,12 @@ There are or were several other efforts to build Just-in-Time compilers
 for Python.  Closest to Numba perhaps was Psyco, an opt-in compiler layered
 on the CPython interpreter.  Psyco featured its own x86-only code generator
 and was discontinued by its author, Armin Rigo, because its architecture
-made maintenance and evolution difficult.  \cite{wikipedia:psyco}
+made maintenance and evolution difficult.  \cite{projectlink:psyco}
 \cite{rigo2004representation}
 
 Another related effort was Unladen Swallow, a project initiated by some
 Google engineers to produce an evolution of the CPython interpreter augmented
-with a LLVM-based Just-in-Time compiler.  \cite{wikipedia:unladen_swallow}
+with a LLVM-based Just-in-Time compiler.  \cite{projectlink:unladen_swallow}
 The objective of Unladen Swallow was to support the full range of existing
 Python code, and to make the generated code progressively faster by adding
 "proven" optimizations.  The project was discontinued before it got
