@@ -192,6 +192,7 @@ features such as generators and array expressions.
 \begin{table}
 \centering
 \label{table:speedup}
+\caption{Numba (version 0.20) and pure C speedups over CPython (version 3.4) for a naive implementation of matrix multiplication.}
 \begin{tabular}{|c|c|c|} \hline
 \textbf{Matrix Size} & \textbf{Numba} & \textbf{C}\\ \hline
 64 x 64 & 463x & 453x \\ \hline
@@ -199,7 +200,6 @@ features such as generators and array expressions.
 256 x 256 & 280x & 263x \\ \hline
 512 x 512 & 276x & 268x \\ \hline
 \end{tabular}
-\caption{Numba (version 0.20) and pure C speedups over CPython (version 3.4) for a naive implementation of matrix multiplication.}
 \end{table}
 
 % jit speedup [ 463.5193133   454.40414508  280.73770492  276.26262626]
@@ -251,12 +251,13 @@ operations on GPGPU targets.
 
 \section{Other Just-in-Time compilers for Python}
 
-There are or were several other efforts to build Just-in-Time compilers
-for Python.  Closest to Numba perhaps was
-Psyco\footnote{\url{http://psyco.sourceforge.net/}}, an opt-in compiler layered
-on the CPython interpreter.  Psyco featured its own x86-only code generator
-and was discontinued by its author, Armin Rigo, because its architecture
-made maintenance and evolution difficult. \cite{rigo2004representation}
+There are or were several other efforts to build JIT compilers for
+Python.  Closest to Numba perhaps was
+Psyco\footnote{\url{http://psyco.sourceforge.net/}}, an opt-in
+compiler layered on the CPython interpreter.  Psyco featured its own
+x86-only code generator and was discontinued by its author, Armin
+Rigo, because its architecture made maintenance and evolution
+difficult. \cite{rigo2004representation}
 
 Another related effort was
 Unladen Swallow\footnote{\url{https://code.google.com/p/unladen-swallow/}},
@@ -269,18 +270,21 @@ Python code, and to make the generated code progressively faster by adding
 significant results for reasons which were explained by one of its authors.
 \cite{kleckner:unladen_swallow_post_mortem}
 
-Other Python Just-in-Time compilers have avoided building on CPython,
-either re-using a significant runtime or building their own.  Of the
-two main alive projects today, PyPy \cite{pypy:pypy} has built its
-own infrastructure from scratch, the other
-Pyston\footnote{\url{https://github.com/dropbox/pyston}}
-is using LLVM.  Both claim or intend to support the full range of features
+Other Python JIT compilers have avoided building on CPython, either
+re-using a significant portion of the CPython runtime or building
+their own.  Of the two main active projects today, PyPy
+\cite{pypy:pypy} has built its own compilation infrastructure from
+scratch, whereas the other
+Pyston\footnote{\url{https://github.com/dropbox/pyston}} is using
+LLVM.  Both claim or intend to support the full range of features
 Python offers.
 
 Compared to those, Numba is much more opportunistic and opinionated.
-It focusses on a narrow subset of Python's usecases on which it
-aims to extract extremely good performance, comparable to what C or Fortran
-code would achieve (or even better, when running on the GPU).
+It focuses on a narrow subset of Python's usecases from which it aims
+to extract extremely good performance, comparable to what C or Fortran
+code would achieve (or even better, when running on the GPU).  Numba
+is also designed to support different execution models, allowing both
+CPU and GPU code to be handled by a common compiler framework.
 
 
 \section{Implementation}
@@ -304,41 +308,43 @@ def foo(a):
 \end{lstlisting}
 
 The compilation starts by converting the Python bytecode into the an
-intermediate representation (IR) on which the type inference
-is performed. If the type of each value in the IR can be inferred, the IR is
-lowered to LLVM, which then emits the final machine code.  We call this the
-\textit{nopython mode} because all operations can be lowered into efficient
-machine code without relying on the Python runtime for any operation.
-A \textit{nopython mode} function can be executed without the \textit{global
-interpreter lock} (GIL) and is able to run in parallel threads.
-If Numba cannot determine one of the value in the IR,
-it assumes to all values in the function to be a Python object. At this point,
-Numba must use the Python C-API and rely on the Python runtime for the
-execution. The generated code would be equivalent to unrolling the interpreter
-loop; thus, removeing the interpreter overhead.
-This compilation mode serves as a fallback if Numba cannot infer the type
-We call this the textit{object mode}.
-of a value or function.
+intermediate representation (IR) on which the type inference is
+performed. If the type of each value in the IR can be inferred, the IR
+is lowered to LLVM, which then emits the final machine code.  We call
+this the \textit{nopython mode} because all operations can be lowered
+into efficient machine code without relying on the Python runtime for
+any operation.  A \textit{nopython mode} function can be executed
+without the \textit{global interpreter lock} (GIL) and is able to run
+in parallel threads.  If Numba cannot determine the type of one of the
+values in the IR, it assumes to all values in the function to be a
+Python object. In such situations, Numba must use the Python C-API and
+rely on the Python runtime for the execution. The generated code would
+be equivalent to unrolling the interpreter loop; thus, removing the
+interpreter overhead.  This compilation mode, called \textit{object
+  mode}, serves as a fallback if Numba cannot infer the type.
 
 \subsection{Bytecode}
 
-When calling a function in normal CPython execution, the interpreter creates
-a new frame for the function and executes the function bytecode.
-The bytecode is an instruction stream similar to x86 assembly.
-Instructions are variable length. Branches are encoded as absolute or relative
-jump instructions. Some bytecode instructions perform multiple tasks.
-For instance, the \textit{JUMP\_IF\_TRUE\_OR\_POP} jump to the
-target address if the value on the top-of-stack (TOS) evalutes to true;
-otherwise, pop the TOS value.  Another complex instruction is the FOR\_ITER
-instruction.  It is used in the encoding of the for-loop construct.
-This instruction asks for the next value of the iterator at TOS.
-If the iterator is exhausted, it pops the stack and jumps to end of loop
-indicated by the operand of the instruction.  Otherwise, the next value of the
-iterator is pushed on to the stack and proceed to the next instruction, which
-is the first instruction of the loop body. Both of these instructions have
-changes the control-flow and have optional stack-effect. \cite{pythondoc:dis}
-Instructions like these are common and they cannot be mapped directly to
-the low-level representation used by LLVM IR.
+When calling a function during normal CPython execution, the
+interpreter creates a new frame for the function and executes the
+function bytecode.  The bytecode is an instruction stream similar to
+x86 assembly.  Instructions are variable length. Branches are encoded
+as absolute or relative jump instructions. Some bytecode instructions
+perform multiple tasks.  For instance, the
+\textit{JUMP\_IF\_TRUE\_OR\_POP} jump to the target address if the
+value on the top-of-stack (TOS) evalutes to true; otherwise, pop the
+TOS value.  Another complex instruction is the FOR\_ITER instruction.
+It is used in the encoding of the for-loop construct.  This
+instruction asks for the next value of the iterator at TOS.  If the
+iterator is exhausted, it pops the stack and jumps to end of loop
+indicated by the operand of the instruction.  Otherwise, the next
+value of the iterator is pushed on to the stack and proceed to the
+next instruction, which is the first instruction of the loop
+body. Both of these instructions have changes the control-flow and
+have optional stack-effect. \cite{pythondoc:dis} Instructions like
+these are common and they cannot be mapped directly to the low-level
+representation used by LLVM IR.  For this reason, the bytecode must
+pass through several stages of analysis before translation.
 
 \subsection{Disassembling the bytecode}
 
@@ -347,21 +353,23 @@ complexity of many common bytecode instructions.  We need to disassemble
 the bytecode to recover the basic-blocks and to convert the stack machine into
 a register machine to facilitate further analysis and lowering.
 
-The first step of disassembling the bytecode is to recover the control flow
-information. The bytecode is scanned for jump targets. The jump targets
-indicate the start of the basic-blocks.  The jump instructions marks the
-end of basic-blocks. This can be a simple process but, as mentioned in previous
-section, some bytecode instructions can perform  operations on one of the
-branch target.  Heuristics are used to reconstruct the basic-blocks properly
-As a result, our bytecode disassembler is tailored to the specific behavior of
-a CPython version.  Different version of CPython can change both the bytecode
-instruction set and the way certain syntactic constructs are encoded.
+The first step of disassembling the bytecode is to recover the control
+flow information. The bytecode is scanned for jump targets. The jump
+targets indicate the start of the basic-blocks.  Jump instructions
+mark the end of basic-blocks. In some cases, this can be a simple
+process but, as mentioned in previous section, some bytecode
+instructions can perform operations on one of the branch targets.
+Heuristics are used to reconstruct the basic-blocks properly. As a
+result, our bytecode disassembler must be tailored to the specific
+behavior of each CPython version.  Different versions of CPython can
+change both the bytecode instruction set and the way certain syntactic
+constructs are encoded.
 
 Once all instructions are grouped into basic-blocks. We can simulate stack
-operations to assign virtual register to each value.  Each basic-block is
+operations to assign a virtual register to each value.  Each basic-block is
 simulated individually. Therefore, it is possible that the stack is empty when
 a pop is encountered. In that case, a \textit{phi} node is inserted.
-Its incoming values is later connected to the lingering stack value from the
+Its incoming values are later connected to the lingering stack value from the
 incoming basic blocks.
 
 \subsection{Internal Representation}
@@ -390,52 +398,56 @@ def foo():
   return a
 \end{lstlisting}
 
-The three assignment to \textit{a} will create three definitions that have
+The three assignments to \textit{a} will create three definitions that have
 types integer, float and complex, respectively.  As a result, the three
-calls to \textit{bar} will be calling a different overloaded version.
+calls to \textit{bar} will be calling different overloaded versions.
 
 \subsection{Type Inference}
 
-Local type inference is applied to the Numba-IR at call time so that
-the type of the argument is known. A data-dependency graph is built for
-propagating the type of each value.  Each node of the graph is an function call
-(builtin operators are implicit function calls). Knowledge of function
-signatures is encoded in a registry.
-Given the argument types, the type inferencer looks up
-the corresponding entry for the function and gets the return type. If a
-different return type is obtained for a value, the two types are unified by
-coercion with preference to avoid information loss. Coercion is only available
-to numeric types and certain built-in types. The data-dependency graph can
-contain cycles due to loops. The type inferencer runs until a fixed-point is
-reached. If the type inference fails, all values are assigned with a generic
-Python object type.
+Local type inference is applied to the Numba IR at call time so that
+the type of the argument is known. A data-dependency graph is built
+for propagating the type of each value.  Each node of the graph is an
+function call (builtin operators, such as addition, are implicit
+function calls). Knowledge of function signatures is encoded in a
+registry.  Given the argument types, the type inferencer looks up the
+corresponding entry for the function and gets the return type. If a
+different return type is obtained for a value, the two types are
+unified by coercion with preference to avoid information
+loss. Coercion is only available to numeric types and certain built-in
+types. The data-dependency graph can contain cycles due to loops, so
+the type inferencer runs until a fixed-point is reached. If the type
+inference process fails, all values are assigned a generic ``Python
+object'' type.
 
 \subsection{High-Level Optimizations}
 
 With type annotation on each variable in the Numba IR, several high-level
-optimizations are performed before lowering. These optimizations exploits
-high-level knowledge of the Python semantic.
+optimizations are performed before lowering. These optimizations exploit
+high-level knowledge of Python semantics.
 
 \subsubsection{Deferred Loop Specialization}
 
-Since loops are likely to be compute-intensive, Numba will extract the loops
-out from function compiled in \textit{object mode} into a new function.
-The new function acts like a Numba \textit{@jit} decorated function and
-waits for callsite compilation. This provides a second chance for Numba to
-optimize any compute intensive loop.
+Since loops are likely to be compute-intensive, Numba will extract the
+loops out from function compiled in \textit{object mode} into a new
+function.  The new function acts like a Numba \textit{@jit} decorated
+function and waits compilation until its call site is reached. This
+provides a second chance for Numba to optimize any compute intensive
+loop to run in nopython mode.
 
-Detecting loop with CPython bytecode is effortless. The \textit{SETUP\_LOOP}
-bytecode describes the span of each loop. Numba can simply copy all
-bytecodes marked by the \textit{SETUP\_LOOP} into a new function. The loop in
-the original function is replaced with a function call to the extracted loop.
+Detecting loops with CPython bytecode is very simple. The
+\textit{SETUP\_LOOP} bytecode describes the span of each loop. Numba
+can simply copy all bytecodes marked by the \textit{SETUP\_LOOP} into
+a new function. The loop in the original function is replaced with a
+function call to the extracted loop.
 
 \subsubsection{Array Expression}
 
-Array expressions are formed by applying built-in Python operators on
-ndarray objects. After type inference, an optimization pass search for any
-array expression and rewrite them into a loop. This avoids allocating
-temporary arrays for intermedate results when an array expression contains
-multiple operations.  For example:
+Array expressions are formed when built-in Python operators, such as
+addition and exponentiation, are applied to ndarray objects. After
+type inference, an optimization pass searches for any array expression
+and rewrites them into a loop. This avoids allocating temporary arrays
+for intermedate results when an array expression contains multiple
+operations.  For example, consider this function:
 
 \begin{lstlisting}
 @jit
@@ -443,33 +455,38 @@ def axpy(a, x, y):
   return a * b + c
 \end{lstlisting}
 
-In the \textit{axpy} function that takes three ndarrays, the normal Python
-execution will allocate an array for the multiplication and one for the
-addition. Numba will rewrite it in a loop over the three arrays with just
-one allocated output array.  Each iteration computes both the multiplication
-and addition for each element in the array.
+In the \textit{axpy} function that takes three ndarrays, the normal
+Python/NumPy execution will allocate an array for the intermediate
+result of multiplication and one for the final result from
+addition. Numba will rewrite this expression into a loop over the
+three arrays with just one allocated output array.  Each iteration
+computes both the multiplication and addition for each element in the
+array, ensuring that registers can be used to hold intermediate scalar
+results.
 
 \subsection{Lowering}
 
-The lowering phase is straightforward.  At this point, we have type information
-for all values in the Numba IR. Each operation is translated to LLVM IR
-according to a implementation registry for each functions.  For each Python
-function, two functions are emitted in LLVM: one for the actual
-actual the compiled function, and one for the bridge between the interpreted
-runtime and the compiled runtime. The bridge unboxes Python objects into
-machine representation for use as arguments by the compiled function.  The
-returned values is boxed from the machine representation back to the Python
-objects.
+The lowering phase is straightforward.  At this point, we have type
+information for all values in the Numba IR. Each operation is
+translated to LLVM IR according to a implementation registry for each
+function known to the compiler (both built-in and user-defined).  For
+each Python function, two functions are emitted in LLVM: one for the
+actual the compiled function, and a wrapper that acts as a bridge
+between the interpreted Python runtime and the compiled Numba
+runtime. The wrapper unboxes Python objects into machine
+representation for use as arguments by the compiled function.  The
+returned values is boxed from the machine representation back to the
+Python objects.
 
 
 \section{Using LLVM}
 
 In this section, we describe our experience with LLVM.
 LLVM provides a simple API into a high quality compiler backend with
-a JIT support readily available. We can focus the development effort
+JIT support readily available. We can focus the development effort
 on the frontend without immense knowledge of the processor instruction set.
-Once we have a working CPU backend, porting Numba to support CUDA and HSA GPUs
-are not difficult.
+Once we had a working CPU backend, porting Numba to support CUDA and HSA GPUs
+was not difficult.
 
 LLVM is arguably the best library for compiler developers but there are still
 some issues and potential improvement. In the rest of
