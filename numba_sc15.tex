@@ -61,7 +61,7 @@
 % without further effort on your part as the last section in
 % the body of your article BEFORE References or any Appendices.
 
-\numberofauthors{2}
+\numberofauthors{3}
 
 %  in this sample file, there are a *total*
 % of EIGHT authors. SIX appear on the 'first-page' (for formatting
@@ -89,7 +89,13 @@ Siu Kwan Lam\\
 Antoine Pitrou\\
     \affaddr{Continuum Analytics}\\
     \affaddr{Austin, Texas}\\
-    \email{antoine.pitrou@continuum.io}
+    \email{apitrou@continuum.io}
+%3rd. author
+\alignauthor
+Stanley Seibert\\
+    \affaddr{Continuum Analytics}\\
+    \affaddr{Austin, Texas}\\
+    \email{sseibert@continuum.io}
 }
 
 \date{3 Sept 2015}
@@ -100,14 +106,15 @@ Antoine Pitrou\\
 
 \maketitle
 \begin{abstract}
-Dynamic, interpreted languages is attractive for domain-experts and scientist
-for experimenting with new ideas.  However, the performance of the interpreter
-is often a barrier for scaling a prototype into operating on large dataset.
-This paper presents a just-in-time compiler for Python that focuses in
-scientific computing. Starting with the simple syntax of Python, Numba compiles
-a subset of the language into efficient machine code that is comparable to
-traditional compiled language. In addition, we share our experience in building
-a JIT compiler using LLVM.
+Dynamic, interpreted languages, like Python, are attractive for
+domain-experts and scientists experimenting with new ideas.  However,
+the performance of the interpreter is often a barrier when scaling to
+larger datasets.  This paper presents a just-in-time compiler for
+Python that focuses in scientific and array-oriented
+computing. Starting with the simple syntax of Python, Numba compiles a
+subset of the language into efficient machine code that is comparable
+in performance to a traditional compiled language. In addition, we
+share our experience in building a JIT compiler using LLVM.
 \end{abstract}
 
 % A category with the (minimum) three required fields
@@ -121,24 +128,26 @@ a JIT compiler using LLVM.
 
 \section{Introduction}
 
-Python is a dynamically typed, interpreted language.
-It is regarded as a high productivity language due to its simple syntax,
-flexible semantic and the large number of libraries.
-It has gained popularity in the scientific computing community,
-which has driven the demand of high performance tools.
-Among the many performance focused librarys, NumPy is one of the important
-scientific library in the Python ecosystem as it provides a multi-dimensional
-array (ndarray) object that became the foundation of efficient numeric
-computation in Python.
+Python is a dynamically typed, interpreted language.  It is regarded
+as a high productivity language due to its simple syntax, flexible
+semantics and the large number of libraries.  As a result, it has
+gained popularity in the scientific computing
+community\cite{oliphant:python}, which has driven the demand for high
+performance tools.  Among many performance-focused libraries in
+Python, NumPy\cite{vanderwalt:numpy} is one of the important
+scientific libraries in the Python ecosystem as it provides a
+multi-dimensional array (ndarray) object that has become the
+foundation of efficient numeric computation in Python.
 
-A ndarray is a homogenous typed data memory buffer.
-Data can be stored in either C contiguous, FORTRAN contiguous or have arbitrary
-strides at each dimension.  This allows binding to high performance computing
-libraries that are traditionally written in C or FORTRAN, such as BLAS and
-LAPACK. The ndarray support array expression: using Python operators on
-ndarrays will trigger element-wise operations that are implemented in C
-efficiently.  However, a trivial looping of the elements in Python is
-inefficient due to the layers of indirection inside interpreted code.
+A ndarray is a homogenously-typed data memory buffer.  Data can be
+stored in either C-contiguous, FORTRAN-contiguous or have arbitrary
+strides at each dimension.  This allows binding to high performance
+computing libraries that are traditionally written in C or FORTRAN,
+such as BLAS and LAPACK. The ndarray support array expression: using
+Python operators on ndarrays will trigger element-wise operations that
+are implemented in C efficiently.  However, a trivial looping of the
+elements in Python is inefficient due to the layers of indirection
+inside interpreted code.
 
 Numba \cite{numba:numba} is initially developed to optimize the inefficient
 use-cases of NumPy.
