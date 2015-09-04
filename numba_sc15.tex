@@ -150,7 +150,7 @@ provides a large speedup over interpreted Python, where looping over
 the elements in Python is inefficient due to the multiple layers of
 indirection inside interpreted code.
 
-Numba \footnote{\url{http://numba.pydata.org/}} was initially
+Numba\footnote{\url{http://numba.pydata.org/}} was initially
 developed to optimize the inefficient use-cases of NumPy.  The layers
 of indirection for ndarray indexing in the interpreter are translated
 into direct loads and stores from pointers.  Before Numba, NumPy users
@@ -209,7 +209,7 @@ features such as generators and array expressions.
 Unlike most JIT compilers for interpreted languages, Numba does not
 perform tracing nor replace the interpreter.  Instead, it relies on
 the user actively transforming the Python functions that need
-compiling at run-time.  In Python, this is done by applying a decorator
+compiling at runtime.  In Python, this is done by applying a decorator
 to the function.  The decorator replaces the original Python function
 with a special object that just-in-time compiles the function when it
 is first called with a new type signature.  To relieve user from the
@@ -273,7 +273,7 @@ significant results for reasons which were explained by one of its authors.
 \cite{kleckner:unladen_swallow_post_mortem}
 
 Other Python JIT compilers have avoided building on CPython, either
-re-using a significant portion of the CPython run-time or building
+re-using a significant portion of the CPython runtime or building
 their own.  Of the two main active projects today, PyPy
 \cite{pypy:pypy} has built its own compilation infrastructure from
 scratch, whereas the other
@@ -333,7 +333,7 @@ function bytecode.  The bytecode is an instruction stream similar to
 x86 assembly.  Instructions are variable length. Branches are encoded
 as absolute or relative jump instructions. Some bytecode instructions
 perform multiple tasks.  For instance, the
-\textit{JUMP\_IF\_TRUE\_OR\_POP} jump to the target address if the
+JUMP\_IF\_TRUE\_OR\_POP jump to the target address if the
 value on the top-of-stack (TOS) evaluates to true; otherwise, pop the
 TOS value.  Another complex instruction is the FOR\_ITER instruction.
 It is used in the encoding of the for-loop construct.  This
@@ -559,7 +559,7 @@ and perform cross-module linking manually. A problem for this is that
 LLVM functions can be duplicated in many modules; thus, increasing the memory
 use.
 
-We will be investigating whether the new On-Request-Compilation JIT
+We will be investigating whether the new On Request Compilation JIT
 alleviates some of these issues.
 
 % http://llvm.cc/t/llvmdev-new-jit-api-orcjit/219
@@ -612,7 +612,7 @@ A callback-based API is essentially useful when events are produced from
 the outside, and/or in an uncontrolled way: for example, GUI or network
 events.  Here, the events are predictable by the application
 itself (compilation is triggered deterministically by calls to the
-execution engine API), therefore an imperative API would have been 
+execution engine API), therefore an imperative API would have been
 well-suited to the task.
 
 \section{Conclusions}
