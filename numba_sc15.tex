@@ -149,8 +149,8 @@ are implemented in C efficiently.  However, a trivial looping of the
 elements in Python is inefficient due to the layers of indirection
 inside interpreted code.
 
-Numba \cite{numba:numba} is initially developed to optimize the inefficient
-use-cases of NumPy.
+Numba\footnote{http://numba.pydata.org/} is initially developed to optimize
+the inefficient use-cases of NumPy.
 The layers of indirection for ndarray indexing are flattened into direct
 loading from pointers.  Before Numba, NumPy users had to write Python
 C extensions to implement any custom computation in an efficient way.
@@ -162,7 +162,8 @@ function for compilation without rewriting the code in a low-level language.
 \section{A JIT for Numeric Python}
 
 Numba is a function-at-a-time Just-in-Time compiler for CPython
-\cite{projectlink:cpython}, the most popular implementation of Python which,
+\footnote{\url{https://www.python.org/}},
+the most popular implementation of Python which,
 as the name suggests, is written C.
 It exists as a library to CPython and does not replace the interpeter.
 Its initial focus is to target a Python subset that makes heavy use of
@@ -239,25 +240,28 @@ performance and to avoid undefined behavior.
 \section{Other Just-in-Time compilers for Python}
 
 There are or were several other efforts to build Just-in-Time compilers
-for Python.  Closest to Numba perhaps was Psyco, an opt-in compiler layered
+for Python.  Closest to Numba perhaps was
+Psyco\footnote{\url{http://psyco.sourceforge.net/}}, an opt-in compiler layered
 on the CPython interpreter.  Psyco featured its own x86-only code generator
 and was discontinued by its author, Armin Rigo, because its architecture
-made maintenance and evolution difficult.  \cite{projectlink:psyco}
-\cite{rigo2004representation}
+made maintenance and evolution difficult. \cite{rigo2004representation}
 
-Another related effort was Unladen Swallow, a project initiated by some
+Another related effort was
+Unladen Swallow\footnote{\url{https://code.google.com/p/unladen-swallow/}},
+a project initiated by some
 Google engineers to produce an evolution of the CPython interpreter augmented
-with a LLVM-based Just-in-Time compiler.  \cite{projectlink:unladen_swallow}
+with a LLVM-based Just-in-Time compiler.
 The objective of Unladen Swallow was to support the full range of existing
 Python code, and to make the generated code progressively faster by adding
-"proven" optimizations.  The project was discontinued before it got
+``proven" optimizations.  The project was discontinued before it got
 significant results for reasons which were explained by one of its authors.
 \cite{kleckner:unladen_swallow_post_mortem}
 
 Other Python Just-in-Time compilers have avoided building on CPython,
 either re-using a significant runtime or building their own.  Of the
-two main alive projects today, one (PyPy \cite{pypy:pypy}) has built its
-own infrastructure from scratch, the other (Pyston \cite{github:pyston})
+two main alive projects today, PyPy \cite{pypy:pypy} has built its
+own infrastructure from scratch, the other
+Pyston\footnote{\url{https://github.com/dropbox/pyston}}
 is using LLVM.  Both claim or intend to support the full range of features
 Python offers.
 
@@ -468,22 +472,24 @@ called llvmpy, to the C++ API and have tried to keep a binding that
 mirrors the C++ interface, but this was soon proven to be difficult.
 To simplify the binding and to minimize its exposure to the LLVM C++ API,
 we adopted the C API instead and added any missing interface to the C++ API.
-The new binding is called llvmlite \cite{rtd:llvmlite}.  It mimicks the
-C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
+The new binding is called llvmlite\footnote{\url{http://llvmlite.pydata.org/}}.
+It mimicks the C++ IRBuilder API in pure Python and builds up a string of the LLVM IR.
 
 \subsection{Error Handling}
 
 Error handling inside LLVM doesn't follow a consistent convention,
 and seems mostly a best-effort concern.  Some errors are ignored or
 left unpropagated, which can lead to hard crashes later on
-\cite{llvmbugs:selinux}. Other errors are reported by the API as a status
+\footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=6701}}.
+Other errors are reported by the API as a status
 code.  Other errors yet trigger an assert() in the C++ source code, and
 therefore a controlled process crash at runtime.  Crashes (either
 controlled or unpredictable) do not allow the Python binding to report
 errors in the expected way, i.e. as Python exceptions.
 
 Furthermore, since error conditions are not much exercised by the test
-suite, regressions can sometimes happen. \cite{llvmbugs:llvmparsebitcode}
+suite, regressions can sometimes happen.
+\footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=22368}}
 
 \subsection{Managing ABI}
 
@@ -526,8 +532,7 @@ use.
 \subsection{Object Cache}
 
 The MCJIT features callback hooks for
-applications to implement a form of object caching.  It works
-as follows \cite{llvmdoc:objectcache}.
+applications to implement a form of object caching.  It works as follows.
 Before compiling a module, the MCJIT execution engine
 calls the user-provided getObject() method.  That method can either
 return a pointer to an existing memory area, in which case that
