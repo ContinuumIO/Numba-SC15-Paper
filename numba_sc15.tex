@@ -166,7 +166,7 @@ for compilation without rewriting the code in a low-level language.
 
 Numba is a function-at-a-time Just-in-Time (JIT) compiler for CPython
 \footnote{\url{https://www.python.org/}}, the most popular
-implementation of Python which, as the name suggests, is written C.
+implementation of Python which, as the name suggests, is written in C.
 Numba is implemented as a library that can be loaded by programs
 running in the CPython interpreter and does not replace the interpreter
 itself.  Its initial focus is to target a Python subset that makes
@@ -225,7 +225,7 @@ generally acceptable for high performance numeric use cases.  The
 compiler does not support the ``big integer'' representation used in
 Python to represent integers of arbitrary size.  Instead, it is
 limited to fixed width integer types up to 64-bits in size, with
-semantics similar similar to many C platforms.  Polymorphic types are
+semantics similar to many C platforms.  Polymorphic types are
 not supported during execution, requiring the compiler to be able to
 resolve all polymorphism at compile time (when the function is
 called).  Implicit coercion occurs when a type is assigned to a
@@ -263,9 +263,8 @@ difficult. \cite{rigo2004representation}
 
 Another related effort was
 Unladen Swallow\footnote{\url{https://code.google.com/p/unladen-swallow/}},
-a project initiated by some
-Google engineers to produce an evolution of the CPython interpreter augmented
-with a LLVM-based Just-in-Time compiler.
+a project sponsored by Google to produce an evolution of the CPython interpreter
+augmented with a LLVM-based Just-in-Time compiler.
 The objective of Unladen Swallow was to support the full range of existing
 Python code, and to make the generated code progressively faster by adding
 ``proven" optimizations.  The project was discontinued before it got
@@ -282,10 +281,12 @@ LLVM.  Both claim or intend to support the full range of features
 Python offers.
 
 Compared to those, Numba is much more opportunistic and opinionated.
-It focuses on a narrow subset of Python's use-cases from which it aims
-to extract extremely good performance, comparable to what C or FORTRAN
-code would achieve (or even better, when running on the GPU).  Numba
-is also designed to support different execution models, allowing both
+It is opportunistic because of the focus on a narrow subset of Python's use-cases
+from which it aims to extract extremely good performance, comparable to what C
+or FORTRAN code would achieve (or even better, when running on the GPU).
+It is opinionated because it prefers and promotes the style of array-oriented
+programming via the use of NumPy ndarrays.
+Numba is also designed to support different execution models, allowing both
 CPU and GPU code to be handled by a common compiler framework.
 
 
@@ -382,7 +383,7 @@ called the Numba IR. The Numba IR is a higher-level representation of the
 function logic than the bytecode. It captures the control-flow as basic-blocks
 and values in variables.
 
-During the translation to the Numba IR, a notion of scoping is introduce to
+During the translation to the Numba IR, a notion of scoping is introduced to
 minimize the effect of mono-typing for variables. An assignment to a variable
 is considered a new variable definition when the definition is visible by all
 subsequent basic-blocks. Otherwise, the assignment stores the new value to
@@ -408,7 +409,7 @@ calls to \textit{bar} will be calling different overloaded versions.
 
 Local type inference is applied to the Numba IR at call time so that
 the type of the argument is known. A data-dependency graph is built
-for propagating the type of each value.  Each node of the graph is an
+for propagating the type of each value.  Each node of the graph is a
 function call (built-in operators, such as addition, are implicit
 function calls). Knowledge of function signatures is encoded in a
 registry.  Given the argument types, the type inferencer looks up the
@@ -430,9 +431,9 @@ high-level knowledge of Python semantics.
 \subsubsection{Deferred Loop Specialization}
 
 Since loops are likely to be compute-intensive, Numba will extract the
-loops out from function compiled in \textit{object mode} into a new
+loops from function compiled in \textit{object mode} into a new
 function.  The new function acts like a Numba \textit{@jit} decorated
-function and waits compilation until its call site is reached. This
+function and defers compilation until its call site is reached. This
 provides a second chance for Numba to optimize any compute intensive
 loop to run in nopython mode.
 
@@ -473,13 +474,17 @@ information for all values in the Numba IR. Each operation is
 translated to LLVM IR according to a implementation registry for each
 function known to the compiler (both built-in and user-defined).  For
 each Python function, two functions are emitted in LLVM: one for the
-actual the compiled function, and a wrapper that acts as a bridge
+actual compiled function, and a wrapper that acts as a bridge
 between the interpreted Python runtime and the compiled Numba
 runtime. The wrapper unboxes Python objects into machine
 representation for use as arguments by the compiled function.  The
 returned values is boxed from the machine representation back to the
 Python objects.
 
+
+\subsection{Support for GPGPUs}
+
+% TODO: talk about memory managemnt
 
 \section{Using LLVM}
 
@@ -488,7 +493,9 @@ LLVM provides a simple API into a high quality compiler back-end with
 JIT support readily available. We can focus the development effort
 on the front-end without immense knowledge of the processor instruction set.
 Once we had a working CPU back-end, porting Numba to support CUDA and HSA GPUs
-was not difficult.
+was not difficult, since we map directly to the execution model of the GPUs.
+It is just a matter of exposing target specific intrinsics to the Python
+language level.
 
 LLVM is arguably the best library for compiler developers but there are still
 some issues and potential improvement. In the rest of
@@ -510,10 +517,9 @@ a string representation of the LLVM IR.
 
 \subsection{Error Handling}
 
-Error handling inside LLVM does not follow a consistent convention,
-and seems mostly a best-effort concern.  Some errors are ignored or
-left unpropagated, which can lead to hard crashes later on
-\footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=6701}}.  Other
+Error handling inside LLVM does not follow a consistent convention.
+Some errors are ignored or left unpropagated, which can lead to hard crashes
+later on \footnote{\url{https://llvm.org/bugs/show_bug.cgi?id=6701}}.  Other
 errors are reported by the API as a status code.  Other errors yet
 trigger an assert() in the C++ source code, and therefore create a
 controlled process crash at runtime.  Crashes (either controlled or
@@ -590,7 +596,7 @@ the official Kaleidoscope tutorial \cite{llvmblog:kaleidoscope}}.
 However, more complex forms of
 caching need to serialize additional information beside the object code
 for the module.  In Numba, this ancillary information is two-fold.  First,
-we need to store freshness information (a timestamp, a version number,
+we need to store metadata (a timestamp, a version number,
 and potentially other data) in order to decide at runtime whether the
 cached module is fresh or stale.  Second, we also need to store non-LLVM
 data that is necessary to call the module's functions to be called,
