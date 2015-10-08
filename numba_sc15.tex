@@ -251,6 +251,16 @@ characteristics of each architecture.  Numba provides access to
 platform specific operations, such as thread barriers and atomic
 operations on GPGPU targets.
 
+To support the CUDA GPU, Numba provides both automatic and manual memory
+management between the GPU deivce memory and the CPU host memory.
+When a ndarray is given as argument, the memory is automatically transferred
+to the device and back when the completed. The transfer is transparent
+to the user but may perform unnecessary transfer since Numba cannot always
+infer whether a ndarray is read-only.  For maximum control of the memory
+transfer, users can explicitly control the memory transfer.  It is important
+to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
+A HSA kernel can directly consume any ndarray.
+
 \section{Other Just-in-Time compilers for Python}
 
 There are or were several other efforts to build JIT compilers for
@@ -480,11 +490,6 @@ runtime. The wrapper unboxes Python objects into machine
 representation for use as arguments by the compiled function.  The
 returned values is boxed from the machine representation back to the
 Python objects.
-
-
-\subsection{Support for GPGPUs}
-
-% TODO: talk about memory managemnt
 
 \section{Using LLVM}
 
