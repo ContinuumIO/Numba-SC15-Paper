@@ -243,23 +243,13 @@ NVVM\footnote{\url{http://docs.nvidia.com/cuda/nvvm-ir-spec/}}
 library, and an AMD HSA\cite{HSA} back-end is also available on APU by using
 HLC\footnote{\url{https://github.com/HSAFoundation/HLC-HSAIL-Development-LLVM}}.
 Both NVVM and HLC are vendor-specific version of LLVM with additional
-support for their hardware.  Rather than attempt to create a portable
+support for their hardware.  Rather than attempting to create a portable
 execution model supported by all targets, Numba directly exposes the
 execution model of each GPGPU architecture to Python.  This allows the
 user to tailor their code to the specific features and performance
 characteristics of each architecture.  Numba provides access to
 platform specific operations, such as thread barriers and atomic
 operations on GPGPU targets.
-
-To support the CUDA GPU, Numba provides both automatic and manual memory
-management between the GPU deivce memory and the CPU host memory.
-When a ndarray is given as argument, the memory is automatically transferred
-to the device and back when the completed. The transfer is transparent
-to the user but may perform unnecessary transfer since Numba cannot always
-infer whether a ndarray is read-only.  For maximum control of the memory
-transfer, users can explicitly control the memory transfer.  It is important
-to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
-A HSA kernel can directly consume any ndarray.
 
 \section{Other Just-in-Time compilers for Python}
 
@@ -491,6 +481,54 @@ representation for use as arguments by the compiled function.  The
 returned values is boxed from the machine representation back to the
 Python objects.
 
+\subsection{Supporting GPGPUs}
+
+Numba supports GPGPU backends by directly exposing the parallel execution
+model of the hardware in a way similar to CUDA-C and OpenCL. A Python function
+can be decorated as a GPU kernel or a device function. The advantage of this
+design is the simplicity of the implementation, since the GPGPU backends can
+share most of the code generation logic with the CPU backend.
+The disadvantage is in the altering of the language semantic to fit the parallel
+execution model of the GPGPUs. While existing GPGPU programmers will be familiar
+with execution model, regular Python programmers with no GPGPU experience may
+find this unintuitive.
+
+The following is an example of a CUDA kernel written using Numba.:
+
+\begin{lstlisting}
+from numba import cuda
+
+@cuda.jit
+def copy_array(inp, out):
+  blksz = cuda.blockDim.x
+  blkid = cuda.blockIdx.x
+  tid = cuda.threadIdx.x
+  i = blksz * blkid + tid
+  if i < out.size:
+    out[i] = inp[i]
+
+# launch kernel
+copy_array[griddim, blockdim](inp, out)
+\end{lstlisting}
+
+The code shown implements a simple kernel that copies array \textit{inp}
+to array \textit{out}.  Target specific intrinsic for reading thread identity
+is exposed as \textit{cuda.blockIdx.x}, \textit{cuda.blockDim.x} and
+\textit{cuda.threadIdx.x}.  To launch a kernel, the indexing operator (square
+brackets) is overloaded to provide the launch configuration (number of threads
+and blocks).  The syntax mirrors the \textit{{<}{<}<...>{>}{>}} syntax
+in CUDA-C.
+
+To support the CUDA GPU, Numba provides both automatic and manual memory
+management between the GPU deivce memory and the CPU host memory.
+When a ndarray is given as argument, the memory is automatically transferred
+to the device and back when the completed. The transfer is transparent
+to the user but may perform unnecessary transfer since Numba cannot always
+infer whether a ndarray is read-only.  For maximum control of the memory
+transfer, users can explicitly control the memory transfer.  It is important
+to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
+A HSA kernel can directly consume any ndarray.
+
 \section{Using LLVM}
 
 In this section, we describe our experience with LLVM.
@@ -499,8 +537,8 @@ JIT support readily available. We can focus the development effort
 on the front-end without immense knowledge of the processor instruction set.
 Once we had a working CPU back-end, porting Numba to support CUDA and HSA GPUs
 was not difficult, since we map directly to the execution model of the GPUs.
-It is just a matter of exposing target specific intrinsics to the Python
-language level.
+The GPU backend shares most of the logic of the CPU backend with extra
+exposure of target specific intrinsics to the Python language.
 
 LLVM is arguably the best library for compiler developers but there are still
 some issues and potential improvement. In the rest of
