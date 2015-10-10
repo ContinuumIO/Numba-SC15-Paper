@@ -226,7 +226,7 @@ the user actively transforming the Python functions that need
 compiling at runtime.  In Python, this is done by applying a decorator
 to the function.  The decorator replaces the original Python function
 with a special object that just-in-time compiles the function when it
-is first called with a new type signature.  To relieve user from the
+is first called with a new type signature.  To relieve users from the
 burden of explicit type annotation, Numba inspects the types of the
 arguments and performs local type inference on the function.  As a
 result, the compiler can have accurate type information for each value
@@ -307,13 +307,13 @@ CPU and GPU code to be handled by a common compiler framework.
 \section{Implementation}
 
 Numba relies on user annotation by using a Python decorator (@jit) on functions.
-The decorator substitute the function object with a special object that triggers
+The decorator substitutes the function object with a special object that triggers
 the compilation when called. When a decorated function is called,
 the call arguments are inspected. If the set of argument types have not appeared
-before, Numba compile will compile a specialized version of the function for the
+before, Numba will compile a specialized version of the function for the
 given types. Otherwise, the previously compiled version is called.
 
-The following example illustrate the usage of the @jit decorator on a function:
+The following example illustrates the usage of the @jit decorator on a function:
 
 
 \begin{lstlisting}
@@ -348,16 +348,16 @@ function bytecode.  The bytecode is an instruction stream similar to
 x86 assembly.  Instructions are variable length. Branches are encoded
 as absolute or relative jump instructions. Some bytecode instructions
 perform multiple tasks.  For instance, the
-JUMP\_IF\_TRUE\_OR\_POP jump to the target address if the
-value on the top-of-stack (TOS) evaluates to true; otherwise, pop the
+JUMP\_IF\_TRUE\_OR\_POP jumps to the target address if the
+value on the top-of-stack (TOS) evaluates to true; otherwise, pops the
 TOS value.  Another complex instruction is the FOR\_ITER instruction.
 It is used in the encoding of the for-loop construct.  This
 instruction asks for the next value of the iterator at TOS.  If the
-iterator is exhausted, it pops the stack and jumps to end of loop
+iterator is exhausted, it pops the stack and jumps to the end of the loop
 indicated by the operand of the instruction.  Otherwise, the next
 value of the iterator is pushed on to the stack and proceed to the
 next instruction, which is the first instruction of the loop
-body. Both of these instructions have changes the control-flow and
+body. Both of these instructions change the control-flow and
 have optional stack-effect. \cite{pythondoc:dis} Instructions like
 these are common and they cannot be mapped directly to the low-level
 representation used by LLVM IR.  For this reason, the bytecode must
@@ -505,7 +505,7 @@ share most of the code generation logic with the CPU backend.
 The disadvantage is in the altering of the language semantic to fit the parallel
 execution model of the GPGPUs. While existing GPGPU programmers will be familiar
 with execution model, regular Python programmers with no GPGPU experience may
-find this unintuitive.
+find the change unintuitive.
 
 
 To support the CUDA GPU, Numba provides both automatic and manual memory
@@ -514,8 +514,9 @@ When a ndarray is used as an argument, the memory is automatically transferred
 to the device and the copied back when the kernel is completed.
 The transfer is transparent
 to the user but may perform unnecessary transfer since Numba cannot determine
-whether a ndarray is never modified.  For maximum control of the memory
-transfer, users can explicitly control the memory transfer.  It is important
+whether a ndarray is never modified.  For maximum control, users can explicitly
+request memory transfer using the \textit{to\_device} and \textit{copy\_to\_host}
+functions.  It is important
 to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
 A HSA kernel can consume any ndarray directly.
 
@@ -620,7 +621,7 @@ engine before the finalization of \textit{foo}; otherwise, the finalization of
 \textit{foo} will fail due to unresolved reference to \textit{bar}.
 This makes handling of mutual recursion difficult.
 
-Separating each functions in different module also make inlining difficult.
+Separating each function into different modules also makes inlining difficult.
 We have to maintain reference to all LLVM modules of every compiled function
 and perform cross-module linking manually. A problem for this is that
 LLVM functions can be duplicated in many modules; thus, increasing the memory
