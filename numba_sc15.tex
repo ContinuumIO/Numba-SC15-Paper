@@ -507,8 +507,19 @@ execution model of the GPGPUs. While existing GPGPU programmers will be familiar
 with execution model, regular Python programmers with no GPGPU experience may
 find this unintuitive.
 
-The following is an example of a CUDA kernel written using Numba.:
 
+To support the CUDA GPU, Numba provides both automatic and manual memory
+management between the GPU deivce memory and the CPU host memory.
+When a ndarray is used as an argument, the memory is automatically transferred
+to the device and the copied back when the kernel is completed.
+The transfer is transparent
+to the user but may perform unnecessary transfer since Numba cannot determine
+whether a ndarray is never modified.  For maximum control of the memory
+transfer, users can explicitly control the memory transfer.  It is important
+to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
+A HSA kernel can consume any ndarray directly.
+
+The following is an example of a CUDA kernel written using Numba.:
 \begin{lstlisting}
 from numba import cuda
 
@@ -525,7 +536,7 @@ def copy_array(inp, out):
 copy_array[griddim, blockdim](inp, out)
 \end{lstlisting}
 
-The code shown implements a simple kernel that copies array \textit{inp}
+The code implements a simple kernel that copies array \textit{inp}
 to array \textit{out}.  Target specific intrinsic for reading thread identity
 is exposed as \textit{cuda.blockIdx.x}, \textit{cuda.blockDim.x} and
 \textit{cuda.threadIdx.x}.  To launch a kernel, the indexing operator (square
@@ -533,15 +544,8 @@ brackets) is overloaded to provide the launch configuration (number of threads
 and blocks).  The syntax mirrors the \textit{{<}{<}<...>{>}{>}} syntax
 in CUDA-C.
 
-To support the CUDA GPU, Numba provides both automatic and manual memory
-management between the GPU deivce memory and the CPU host memory.
-When a ndarray is given as argument, the memory is automatically transferred
-to the device and back when the completed. The transfer is transparent
-to the user but may perform unnecessary transfer since Numba cannot always
-infer whether a ndarray is read-only.  For maximum control of the memory
-transfer, users can explicitly control the memory transfer.  It is important
-to note that HSA APUs have cache coherent shared memory between the CPU and GPU.
-A HSA kernel can directly consume any ndarray.
+
+
 
 \section{Using LLVM}
 
