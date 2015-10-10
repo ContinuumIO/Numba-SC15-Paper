@@ -1,0 +1,19 @@
+Review 1:
+
+The variable naming is fixed in the axpy example.
+
+Review 2:
+
+All listed mistakes regarding grammar and language is fixed.
+
+A section 4.7 is added to extend the discussion on GPGPU.
+
+Review 3:
+
+Regarding the lack of "real-world" applications examples,
+our company has several private-sector and government projects that are using
+numba.  The private-sector projects are under NDA and the government projects
+require a long public-release approval process.  As a result, we have chosen
+not to discuss any real-world application.  In additional, since numba
+does not replace the CPython interpreter, numba can indirectly support many
+usecases by speeding up the most performance critical part.
