@@ -1,0 +1,12 @@
+*** orig.html	2015-11-10 15:37:44.000000000 -0600
+--- talk.slides.html	2015-11-10 15:37:53.000000000 -0600
+***************
+*** 1138,1143 ****
+--- 1138,1144 ----
+  
+  // Full list of configuration options available here: https://github.com/hakimel/reveal.js#configuration
+  Reveal.initialize({
++ width: 1400,
+  controls: true,
+  progress: true,
+  history: true,

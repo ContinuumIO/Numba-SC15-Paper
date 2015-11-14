@@ -1,0 +1,69 @@
+/*
+Best to add the below reveal.js config to the Reveal.initialize:
+
+width: 1400,
+height: 900,
+
+*/
+/*Some css fixes to use night theme with IPython slides*/
+
+body {
+background-color: #253746;
+}
+
+.reveal {
+font-size: 300%;
+}
+
+.reveal .state-background {
+background-color: #253746;
+background-image: url("Continuum_Logo_W_0702-01.png");
+background-repeat: no-repeat;
+background-size: 200px;
+background-position: right top;
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6 {
+color: #FCE300;
+font-family: "Arial";
+}
+
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6 {
+color: #A4BCC2;
+}
+
+.reveal p {
+color: white;
+font-family: "Georgia";
+}
+
+.reveal ul, ol {
+color: white;
+}
+
+div.input_area {
+font-size: 60%;
+
+}
+
+div.output_area pre {
+font-size: 40%;
+
+background-color: #A4BCC2;
+}
+
+.reveal table th, .reveal table td {
+color: white;
+}
+
+div.input_prompt {
+color: #A4BCC2;
+}
